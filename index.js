@@ -1,5 +1,6 @@
-// SillyTavern 剪报拼贴诗扩展 - 终极无暇修复版
+// SillyTavern 剪报拼贴诗扩展 - 修复崩溃终极版
 (function () {
+    // 1. 动态注入 html2canvas 与字体源
     if (!window.html2canvas) {
         const s = document.createElement('script');
         s.src = 'https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js';
@@ -10,6 +11,7 @@
     fontLink.href = 'https://fonts.googleapis.com/css2?family=Ma+Shan+Zheng&family=Noto+Sans+SC:wght@300;400;500&family=Noto+Serif+SC:wght@300;400;600&family=ZCOOL+XiaoWei&display=swap';
     document.head.appendChild(fontLink);
 
+    // 2. 核心样式 (绝对层级控制)
     const styleEl = document.createElement('style');
     styleEl.innerHTML = `
         :root {
@@ -29,22 +31,23 @@
         #bp-modal-container {
             position: fixed !important; top: 0 !important; left: 0 !important; 
             width: 100vw !important; height: 100vh !important;
-            background: rgba(20,20,20,0.98) !important;
-            z-index: 2147483647 !important;
+            background: rgba(20,20,20,0.95) !important;
+            z-index: 100000 !important;
             display: none; justify-content: center; align-items: flex-start;
             overflow-y: auto !important; padding: 70px 10px 50px 10px; 
             font-family: -apple-system, sans-serif !important;
+            box-sizing: border-box;
         }
 
         #bp-viewport-box { position: relative; display: flex; flex-direction: column; align-items: center; width: 100%; max-width: 440px; margin: 0 auto; }
         
-        #bp-top-left-bar { position: absolute; top: -52px; left: 0; display: flex; align-items: center; gap: 6px; }
-        #bp-top-right-bar { position: absolute; top: -52px; right: 0; display: flex; align-items: center; gap: 6px; }
+        #bp-top-left-bar { position: absolute; top: -52px; left: 0; display: flex; align-items: center; gap: 6px; z-index: 100015; }
+        #bp-top-right-bar { position: absolute; top: -52px; right: 0; display: flex; align-items: center; gap: 6px; z-index: 100015; }
         
         .bp-icon-btn {
             width: 36px; height: 36px; display: flex; justify-content: center; align-items: center; cursor: pointer;
             background: #FFFFFF !important; border: 1px solid #CCC !important; border-radius: 4px;
-            box-shadow: 0 4px 12px rgba(0,0,0,0.2) !important; opacity: 1 !important; visibility: visible !important;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.2) !important;
         }
         .bp-icon-btn svg { width: 18px; height: 18px; stroke: #1C1C1C; stroke-width: 1.6; fill: none; }
         
@@ -53,22 +56,22 @@
         .bp-layout-btn.active { background: #1C1C1C !important; color: #FFF !important; font-weight: 500; }
         
         #bp-poster-canvas {
-            box-shadow: 0 25px 60px rgba(0,0,0,0.8) !important; position: relative; display: flex; flex-direction: column;
+            box-shadow: 0 25px 60px rgba(0,0,0,0.6) !important; position: relative; display: flex; flex-direction: column;
             border: 1px solid rgba(0,0,0,0.1); touch-action: none; width: 100%; max-width: 420px; background: #FFF !important;
-            opacity: 1 !important; visibility: visible !important; filter: none !important; margin: 0 auto;
+            margin: 0 auto;
         }
         #bp-poster-canvas.layout-horizontal { flex-direction: row !important; max-width: 680px; width: 100%; }
         
         #bp-source-area {
             background-color: var(--bp-top-bg) !important; background-size: cover; background-position: center;
-            padding: 40px 36px 30px 36px; position: relative; flex-shrink: 0; height: auto;
-            font-family: var(--bp-top-font-family); opacity: 1 !important;
+            padding: 34px 24px 24px 24px; position: relative; flex-shrink: 0; height: auto;
+            font-family: var(--bp-top-font-family);
         }
         #bp-poster-canvas.layout-horizontal #bp-source-area { width: 50%; }
         
         .bp-text-flow {
             color: var(--bp-shared-text-color) !important; font-size: var(--bp-top-font-size); line-height: 2.2;
-            letter-spacing: 0.06em; text-align: justify; word-break: break-all; opacity: 1 !important;
+            letter-spacing: 0.06em; text-align: justify; word-break: break-all;
         }
         
         .bp-char-node { cursor: pointer; position: relative; display: inline-block; color: var(--bp-shared-text-color) !important; }
@@ -85,7 +88,7 @@
         #bp-collage-area {
             position: relative; background-color: var(--bp-bottom-bg) !important; background-size: cover; background-position: center;
             border-top: 1px solid rgba(0, 0, 0, 0.04); flex-shrink: 0; min-height: 180px; min-width: 180px;
-            overflow: hidden; font-family: var(--bp-scrap-font-family); padding-bottom: 35px; opacity: 1 !important;
+            overflow: hidden; font-family: var(--bp-scrap-font-family); padding-bottom: 35px;
         }
         #bp-poster-canvas.layout-horizontal #bp-collage-area { border-top: none; border-left: 1px solid rgba(0, 0, 0, 0.04); width: 50%; }
         
@@ -94,7 +97,6 @@
             padding: 3px 6px; font-size: var(--bp-scrap-font-size); line-height: 1; border-radius: 1px;
             cursor: grab; box-shadow: 1px 2px 5px rgba(0,0,0,0.15) !important; font-family: inherit; touch-action: none;
             z-index: 10; display: inline-flex; justify-content: center; align-items: center; width: 26px; height: 30px;
-            opacity: 1 !important;
         }
         .bp-scrap-word:active { cursor: grabbing; box-shadow: 2px 6px 14px rgba(0,0,0,0.25) !important; z-index: 100; }
         
@@ -114,22 +116,18 @@
             letter-spacing: 0.1em; color: var(--bp-shared-text-color) !important; opacity: 0.45 !important; pointer-events: none;
         }
 
-        #bp-floating-profile-card {
-            position: absolute; top: 20px; left: 50%; transform: translateX(-50%);
-            display: flex; flex-direction: column; align-items: center; cursor: grab; z-index: 1200; touch-action: none;
-            padding: 6px 12px; border-radius: 4px; transition: background 0.15s; display:none;
+        /* 修复丢失的遮罩层 */
+        #bp-common-mask {
+            position: fixed !important; top: 0 !important; left: 0 !important; 
+            width: 100vw !important; height: 100vh !important;
+            background: rgba(0,0,0,0.4) !important; z-index: 100005 !important;
+            display: none; opacity: 0; transition: opacity 0.25s;
         }
-        #bp-floating-profile-card:active { cursor: grabbing; }
-        .profile-avatars-row { display: flex; align-items: center; gap: 12px; margin-bottom: 8px; }
-        .card-avatar-circle { width: 48px; height: 48px; border-radius: 50%; object-fit: cover; box-shadow: 0 2px 8px rgba(0, 0, 0, 0.12); border: 1.5px solid #FFFFFF; }
-        .profile-names-row { display: flex; align-items: center; gap: 8px; font-size: 13px; font-weight: 600; color: var(--bp-shared-text-color); letter-spacing: 0.1em; margin-bottom: 4px; }
-        .profile-names-divider { color: #AAA; font-weight: 300; }
-        .profile-date-row { font-size: 9.5px; color: #8E8E8E; letter-spacing: 0.08em; margin-bottom: 8px; }
-        .profile-line-divider { width: 38px; height: 1px; background-color: #D6D6D6; }
+        #bp-common-mask.visible { display: block; opacity: 1; }
 
         .bp-drawer {
             position: fixed !important; top: 0 !important; width: 280px !important; height: 100vh !important; 
-            background: #FAFAFA !important; box-shadow: 0 0 35px rgba(0,0,0,0.5) !important; z-index: 2147483647 !important;
+            background: #FAFAFA !important; box-shadow: 0 0 35px rgba(0,0,0,0.5) !important; z-index: 100010 !important;
             display: flex; flex-direction: column; padding: 25px 16px; overflow-y: auto; font-size: 11.5px;
             color: #222 !important; transition: all 0.3s;
         }
@@ -152,7 +150,7 @@
         .color-group-label { font-size: 9px; color: #999; margin: 4px 0 2px 0; }
         .color-palette-row { display: grid; grid-template-columns: repeat(6, 1fr); gap: 4px; margin-bottom: 5px; }
         .color-dot { height: 20px; border-radius: 2px; border: 1px solid rgba(0, 0, 0, 0.1); cursor: pointer; transition: transform 0.15s; }
-        .color-dot:hover { transform: scale(1.1); z-index: 2; }
+        .color-dot:hover { transform: scale(1.1); }
         .color-picker-wrapper { display: flex; align-items: center; gap: 6px; margin: 4px 0 8px 0; background: #EEE; padding: 4px 8px; border-radius: 2px; border: 1px solid #CCC; }
         .color-picker-input { width: 22px; height: 22px; border: none; padding: 0; cursor: pointer; background: none; }
         
@@ -160,9 +158,6 @@
         .setting-field label { display: block; font-size: 9.5px; color: #777; margin-bottom: 4px; }
         .setting-input { width: 100%; background: #FFF; border: 1px solid #CCC; padding: 6px 8px; font-size: 11px; border-radius: 2px; outline: none; color: #111; }
         .setting-toggle-row { display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px; color: #111; font-weight: 500;}
-        .avatar-upload-pair { display: flex; gap: 10px; margin-top: 6px; }
-        .avatar-preview-box { width: 44px; height: 44px; border-radius: 50%; border: 1px dashed #999; display: flex; align-items: center; justify-content: center; overflow: hidden; position: relative; background: #EEE; flex-shrink: 0; }
-        .avatar-preview-box img { width: 100%; height: 100%; object-fit: cover; }
         .file-wrapper { position: relative; overflow: hidden; display: block; margin-top: 4px; }
         .file-wrapper input[type="file"] { position: absolute; left: 0; top: 0; opacity: 0; cursor: pointer; width: 100%; height: 100%; }
         .slider-row { display: flex; align-items: center; justify-content: space-between; margin-top: 6px; }
@@ -171,6 +166,7 @@
     `;
     document.head.appendChild(styleEl);
 
+    // 3. 注入主 DOM (已修复缺失的 bp-common-mask)
     const modal = document.createElement('div');
     modal.id = 'bp-modal-container';
     modal.innerHTML = `
@@ -184,6 +180,9 @@
             </defs>
         </svg>
 
+        <!-- 关键修复：遮罩层 -->
+        <div id="bp-common-mask"></div>
+
         <div id="bp-viewport-box">
             <div id="bp-top-left-bar">
                 <div class="bp-icon-btn" id="bp-btn-drawer"><svg viewBox="0 0 24 24"><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="18" x2="21" y2="18"/></svg></div>
@@ -193,32 +192,18 @@
                     <button class="bp-layout-btn" id="bp-layout-h">左右</button>
                 </div>
             </div>
+            
             <div id="bp-top-right-bar">
+                <!-- 设置与保存并列 -->
                 <div class="bp-icon-btn" id="bp-btn-settings"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg></div>
                 <div class="bp-icon-btn" id="bp-btn-save"><svg viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg></div>
                 <div class="bp-icon-btn" id="bp-btn-close"><svg viewBox="0 0 24 24"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></div>
             </div>
+            
             <div id="bp-poster-canvas">
-                <div id="bp-floating-profile-card">
-                    <div class="profile-avatars-row">
-                        <img class="card-avatar-circle" id="card-avatar-1" src="">
-                        <img class="card-avatar-circle" id="card-avatar-2" src="">
-                    </div>
-                    <div class="profile-names-row">
-                        <span id="card-name-1">USER</span>
-                        <span class="profile-names-divider" id="card-name-divider">·</span>
-                        <span id="card-name-2">CHAR</span>
-                    </div>
-                    <div class="profile-date-row" id="card-date"></div>
-                    <div class="profile-line-divider"></div>
-                </div>
-
-                <div id="bp-source-area">
-                    <div class="bp-text-flow" id="bpTextFlow"></div>
-                    <div class="texture-layer" id="top-texture" style="background:none;"></div>
-                </div>
+                <div id="bp-source-area"><div class="bp-text-flow" id="bpTextFlow"></div><div class="texture-layer" id="top-texture"></div></div>
                 <div id="bp-collage-area">
-                    <div class="texture-layer" id="bottom-texture" style="background:none;"></div>
+                    <div class="texture-layer" id="bottom-texture"></div>
                     <div id="bp-bottom-meta"><span id="bp-time-span"></span><span id="bp-wm-span"></span></div>
                     <div id="bp-collage-resizer"></div>
                 </div>
@@ -233,23 +218,19 @@
                     <button class="bp-action-chip" onclick="window.bpArrange(2)">排 2 行</button>
                     <button class="bp-action-chip" style="font-weight:bold;" onclick="window.bpArrange(3)">排 3 行</button>
                 </div>
-                <button class="bp-action-chip" style="width:100%; margin-top:4px;" onclick="window.bpResetCuts()">复原全部字</button>
+                <button class="bp-action-chip" style="width:100%; margin-top:4px;" onclick="window.bpResetCuts()">复原全部</button>
             </div>
             <div class="bp-drawer-section">
                 <div class="bp-section-title">1. 壁纸 (原文区)</div>
                 <div id="topPaletteContainer"></div>
                 <div class="color-picker-wrapper">
                     <input type="color" class="color-picker-input" id="topColorPicker" value="#F7F5F0" onchange="window.bpSetTopCustomBg(this.value)">
-                    <span style="font-size:10px; color:#555;">自定义取色调色盘</span>
+                    <span style="font-size:10px; color:#555;">自选颜色</span>
                 </div>
                 <div class="bp-chip-grid" style="grid-template-columns: repeat(3, 1fr); margin-top:8px;">
                     <button class="bp-action-chip active" id="top-tex-none" onclick="window.bpSetTopTexture('none')">无纹理</button>
                     <button class="bp-action-chip" id="top-tex-frosted" onclick="window.bpSetTopTexture('frosted')">细磨砂</button>
                     <button class="bp-action-chip" id="top-tex-noise" onclick="window.bpSetTopTexture('noise')">胶片噪点</button>
-                </div>
-                <div class="slider-row">
-                    <span>纹理浓度</span>
-                    <input type="range" min="0" max="70" value="0" id="top-grain-slider" oninput="window.bpSetTopGrainOpacity(this.value)">
                 </div>
             </div>
             <div class="bp-drawer-section">
@@ -257,7 +238,7 @@
                 <div id="bottomPaletteContainer"></div>
                 <div class="color-picker-wrapper">
                     <input type="color" class="color-picker-input" id="botColorPicker" value="#F7F5F0" onchange="window.bpSetBottomCustomBg(this.value)">
-                    <span style="font-size:10px; color:#555;">自定义取色调色盘</span>
+                    <span style="font-size:10px; color:#555;">自选颜色</span>
                 </div>
                 <button class="bp-action-chip" style="width:100%; margin-top:6px;" onclick="window.bpSyncCollageSize()">使拼贴区与原文区等大</button>
                 <div class="bp-chip-grid" style="grid-template-columns: repeat(3, 1fr); margin-top:8px;">
@@ -265,75 +246,30 @@
                     <button class="bp-action-chip" id="bot-tex-frosted" onclick="window.bpSetBottomTexture('frosted')">细磨砂</button>
                     <button class="bp-action-chip" id="bot-tex-noise" onclick="window.bpSetBottomTexture('noise')">胶片噪点</button>
                 </div>
-                <div class="slider-row">
-                    <span>纹理浓度</span>
-                    <input type="range" min="0" max="70" value="0" id="bot-grain-slider" oninput="window.bpSetBottomGrainOpacity(this.value)">
-                </div>
             </div>
             <div class="bp-drawer-section">
-                <div class="bp-section-title">字体颜色 (统一)</div>
+                <div class="bp-section-title">字体颜色</div>
                 <div id="textColorPaletteContainer"></div>
                 <div class="color-picker-wrapper" style="margin-top:6px;">
                     <input type="color" class="color-picker-input" id="textColorPicker" value="#1A1A1A" onchange="window.bpSetTextColor(this.value)">
-                    <span style="font-size:10px; color:#555;">自定义文字色</span>
+                    <span style="font-size:10px; color:#555;">自选颜色</span>
                 </div>
             </div>
             <div class="bp-drawer-section">
-                <div class="bp-section-title">字体选择 (独立)</div>
-                <div style="font-size:10px; margin-bottom:4px; font-weight:bold;">上:原文区</div>
+                <div class="bp-section-title">字体设置</div>
+                <div style="font-size:10px; margin-bottom:4px; font-weight:bold;">上: 原文区</div>
                 <div class="bp-font-item selected" onclick="window.bpSetZoneFont('top', 'Noto Serif SC, serif', this)"><span>思源宋体</span><span>恨水虚席</span></div>
                 <div class="bp-font-item" onclick="window.bpSetZoneFont('top', 'Ma Shan Zheng, cursive', this)"><span>马善政毛笔</span><span>恨水虚席</span></div>
                 <div class="slider-row" style="margin-bottom:10px;"><span>原文大小</span><input type="range" min="11" max="24" value="14" oninput="window.bpSetTopFontSize(this.value)"></div>
                 
-                <div style="font-size:10px; margin-bottom:4px; font-weight:bold;">下:拼贴区</div>
+                <div style="font-size:10px; margin-bottom:4px; font-weight:bold;">下: 拼贴区</div>
                 <div class="bp-font-item selected" onclick="window.bpSetZoneFont('bottom', 'Noto Serif SC, serif', this)"><span>思源宋体</span><span>恨水虚席</span></div>
                 <div class="bp-font-item" onclick="window.bpSetZoneFont('bottom', 'Ma Shan Zheng, cursive', this)"><span>马善政毛笔</span><span>恨水虚席</span></div>
-                <div class="slider-row"><span>拼贴字大小</span><input type="range" min="11" max="24" value="14" oninput="window.bpSetScrapFontSize(this.value)"></div>
+                <div class="slider-row"><span>拼贴大小</span><input type="range" min="11" max="24" value="14" oninput="window.bpSetScrapFontSize(this.value)"></div>
             </div>
         </div>
 
         <div class="bp-drawer" id="bp-right-drawer">
-            <div class="bp-drawer-section">
-                <div class="bp-section-title">拖拽头像卡片</div>
-                <div class="setting-toggle-row">
-                    <span>显示卡片</span>
-                    <input type="checkbox" id="toggle-profile-cb" onchange="window.bpToggleProfileCard()" style="accent-color:#000;">
-                </div>
-                <div class="setting-toggle-row">
-                    <span>模式</span>
-                    <div style="display:flex; gap:4px;">
-                        <button class="bp-action-chip" id="btn-mode-single" onclick="window.bpSetUserMode('single')">单人</button>
-                        <button class="bp-action-chip active" id="btn-mode-cp" onclick="window.bpSetUserMode('cp')">双人</button>
-                    </div>
-                </div>
-                <div class="setting-field">
-                    <label>角色 1 昵称</label>
-                    <input type="text" class="setting-input" id="user1-name-input" value="USER" oninput="window.bpUpdateMeta()">
-                    <div class="avatar-upload-pair">
-                        <div class="avatar-preview-box"><img id="avatar1-img" src="data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='%23555'><circle cx='12' cy='8' r='4'/><path d='M4 20c0-4 4-6 8-6s8 2 8 6'/></svg>"></div>
-                        <div class="file-wrapper" style="flex:1;">
-                            <div class="bp-action-chip">换头像</div>
-                            <input type="file" accept="image/*" onchange="window.bpUploadAvatar(event, 1)">
-                        </div>
-                    </div>
-                </div>
-                <div class="setting-field" id="user2-group">
-                    <label>角色 2 昵称</label>
-                    <input type="text" class="setting-input" id="user2-name-input" value="CHAR" oninput="window.bpUpdateMeta()">
-                    <div class="avatar-upload-pair">
-                        <div class="avatar-preview-box"><img id="avatar2-img" src="data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='%23888'><circle cx='12' cy='8' r='4'/><path d='M4 20c0-4 4-6 8-6s8 2 8 6'/></svg>"></div>
-                        <div class="file-wrapper" style="flex:1;">
-                            <div class="bp-action-chip">换头像</div>
-                            <input type="file" accept="image/*" onchange="window.bpUploadAvatar(event, 2)">
-                        </div>
-                    </div>
-                </div>
-                <div class="setting-field">
-                    <label>卡片日期标注</label>
-                    <input type="text" class="setting-input" id="date-text-input" value="" oninput="window.bpUpdateMeta()">
-                </div>
-            </div>
-
             <div class="bp-drawer-section">
                 <div class="bp-section-title">一键打码</div>
                 <div class="bp-mask-row" onclick="window.bpToggleMask('user')"><span id="bp-sym-user">⊹</span><span>User</span></div>
@@ -344,20 +280,36 @@
                     <button class="bp-action-chip" id="bp-m-symbol" onclick="window.bpSetMaskStyle('symbol')">符号</button>
                 </div>
             </div>
-            
+            <div class="bp-drawer-section">
+                <div class="bp-section-title">时间与水印</div>
+                <div class="setting-toggle-row"><span>显示时间</span><input type="checkbox" id="toggle-time-cb" checked onchange="window.bpUpdateMeta()" style="accent-color:#000;"></div>
+                <div class="bp-chip-grid" style="grid-template-columns:1fr 1fr; margin-bottom:12px;">
+                    <button class="bp-action-chip active" id="bp-t-solar" onclick="window.bpSetTimeMode('solar')">公历</button>
+                    <button class="bp-action-chip" id="bp-t-lunar" onclick="window.bpSetTimeMode('lunar')">干支历</button>
+                </div>
+                <div class="setting-toggle-row"><span>显示水印</span><input type="checkbox" id="toggle-watermark-cb" checked onchange="window.bpUpdateMeta()" style="accent-color:#000;"></div>
+                <input type="text" class="setting-input" id="watermark-text-input" value="SillyTavern" oninput="window.bpUpdateMeta()">
+            </div>
             <div class="bp-drawer-section" id="bp-author-box">
-                <div class="bp-section-title">名人文风 (点击自动扣字排版)</div>
+                <div class="bp-section-title">名人风格自动生成</div>
                 <div class="bp-author-grid" id="bpAuthorList"></div>
             </div>
         </div>
     `;
     document.body.appendChild(modal);
 
+    // 智能选区雷达
+    let lastUserSelectedText = "";
+    document.addEventListener('selectionchange', () => {
+        const sel = window.getSelection();
+        if (sel && sel.toString().trim().length > 0) lastUserSelectedText = sel.toString().trim();
+    });
+
     const authors = [
-        { name: "张爱玲", pats: [["烫手", "糖衣"], ["毫不设防", "吞下去"]] },
+        { name: "张爱玲", pats: [["烫手的铁", "包上糖衣"], ["毫不设防", "吞下去"]] },
         { name: "史铁生", pats: [["漫长", "使用历史"], ["默认", "仍然成立"]] },
-        { name: "太宰治", pats: [["全然", "吞下去"], ["带着期待", "张嘴"]] },
-        { name: "木心", pats: [["教她", "系鞋带"], ["唐诗", "水里闭眼"]] },
+        { name: "太宰治", pats: [["全然", "吞下去"], ["带着期待", "张开嘴"]] },
+        { name: "木心", pats: [["教她", "系鞋带"], ["唐诗", "不要闭眼睛"]] },
         { name: "余华", pats: [["喉咙", "烫手的铁"], ["每一颗", "递过去"]] },
         { name: "鲁迅", pats: [["喉咙里", "烫手的铁"], ["答案", "腐蚀成铁"]] }
     ];
@@ -371,27 +323,19 @@
         const b = document.createElement('div');
         b.className = 'bp-author-btn';
         b.innerText = a.name;
-        b.onclick = () => { window.bpGenerateByAuthor(a); document.getElementById('bp-right-drawer').classList.remove('open'); };
+        b.onclick = () => { window.bpGenerateByAuthor(a); document.getElementById('bp-right-drawer').classList.remove('open'); document.getElementById('bp-common-mask').classList.remove('visible'); };
         authorListEl.appendChild(b);
     });
 
-    // 智能选区雷达
-    let lastUserSelectedText = "";
-    document.addEventListener('selectionchange', () => {
-        const sel = window.getSelection();
-        if (sel && sel.toString().trim().length > 0) lastUserSelectedText = sel.toString().trim();
-    });
-
     const colorCategories = {
-        light: [{bg:'#F7F5F0'}, {bg:'#FFFFFF'}, {bg:'#F2F2F2'}, {bg:'#F0ECE1'}, {bg:'#EFE5E3'}],
-        vintage: [{bg:'#6B2D2B'}, {bg:'#334839'}, {bg:'#203A4C'}, {bg:'#D9CBB7'}, {bg:'#C99E5C'}],
-        dark: [{bg:'#111111'}, {bg:'#1C1E21'}, {bg:'#2B2B2B'}, {bg:'#0F1A24'}, {bg:'#241B18'}]
+        light: [{bg:'#F7F5F0'}, {bg:'#FFFFFF'}, {bg:'#F2F2F2'}, {bg:'#F0ECE1'}],
+        vintage: [{bg:'#6B2D2B'}, {bg:'#334839'}, {bg:'#203A4C'}, {bg:'#D9CBB7'}],
+        dark: [{bg:'#111111'}, {bg:'#1C1E21'}, {bg:'#2B2B2B'}, {bg:'#0F1A24'}]
     };
     function initColors(cid, cb) {
         const c = document.getElementById(cid);
         ['light','vintage','dark'].forEach(k => {
-            const r = document.createElement('div');
-            r.className = 'color-palette-row';
+            const r = document.createElement('div'); r.className = 'color-palette-row';
             colorCategories[k].forEach(cl => {
                 const b = document.createElement('button');
                 b.className = 'color-dot'; b.style.background = cl.bg; b.onclick = () => cb(cl.bg);
@@ -410,7 +354,7 @@
         document.documentElement.style.setProperty('--bp-bottom-bg', c);
     });
     
-    const txtCols = ['#1A1A1A', '#FFFFFF', '#666666', '#A0A0A0', '#6B2D2B', '#334839', '#203A4C', '#C99E5C', '#D9CBB7', '#EFE5E3'];
+    const txtCols = ['#1A1A1A', '#FFFFFF', '#666666', '#6B2D2B', '#334839', '#203A4C', '#D9CBB7', '#EFE5E3'];
     const tc = document.getElementById('textColorPaletteContainer');
     const tr = document.createElement('div'); tr.className = 'color-palette-row';
     txtCols.forEach(c => {
@@ -419,9 +363,7 @@
     });
     tc.appendChild(tr);
 
-    window.bpSetTextColor = function(c) {
-        document.documentElement.style.setProperty('--bp-shared-text-color', c);
-    }
+    window.bpSetTextColor = function(c) { document.documentElement.style.setProperty('--bp-shared-text-color', c); }
     window.bpSetTopTexture = function(t) {
         document.querySelectorAll('[id^="top-tex-"]').forEach(b => b.classList.remove('active'));
         document.getElementById(`top-tex-${t}`).classList.add('active');
@@ -570,81 +512,52 @@
         });
     }
 
-    window.bpSetUserMode = function(m) {
-        currentUserMode = m;
-        document.getElementById('btn-mode-single').classList.toggle('active', m === 'single');
-        document.getElementById('btn-mode-cp').classList.toggle('active', m === 'cp');
-        document.getElementById('user2-group').style.display = m === 'cp' ? 'block' : 'none';
-        document.getElementById('card-avatar-2').style.display = m === 'cp' ? 'block' : 'none';
-        document.getElementById('card-name-divider').style.display = m === 'cp' ? 'inline' : 'none';
-        document.getElementById('card-name-2').style.display = m === 'cp' ? 'inline' : 'none';
-    };
-
-    window.bpUploadAvatar = function(e, uNum) {
-        const file = e.target.files[0];
-        if (!file) return;
-        const reader = new FileReader();
-        reader.onload = (ev) => {
-            const src = ev.target.result;
-            document.getElementById(`avatar${uNum}-img`).src = src;
-            document.getElementById(`card-avatar-${uNum}`).src = src;
-        };
-        reader.readAsDataURL(file);
-    };
-
-    window.bpToggleProfileCard = function() {
-        const show = document.getElementById('toggle-profile-cb').checked;
-        document.getElementById('bp-floating-profile-card').style.display = show ? 'flex' : 'none';
-    };
-
     window.bpUpdateMeta = function() {
-        document.getElementById('card-name-1').innerText = document.getElementById('user1-name-input').value.trim();
-        document.getElementById('card-name-2').innerText = document.getElementById('user2-name-input').value.trim();
-        document.getElementById('card-date').innerText = document.getElementById('date-text-input').value.trim();
-        document.getElementById('bar-avatar-1').src = document.getElementById('avatar1-img').src;
-        document.getElementById('bar-avatar-2').src = document.getElementById('avatar2-img').src;
+        const now = new Date();
+        const tSpan = document.getElementById('bp-time-span');
+        if (document.getElementById('toggle-time-cb').checked) {
+            tSpan.style.display = 'inline';
+            if (timeMode === 'solar') { tSpan.innerText = `${now.getFullYear()}.${now.getMonth()+1}.${now.getDate()}`; } 
+            else {
+                const tg = ["甲","乙","丙","丁","戊","己","庚","辛","壬","癸"];
+                const dz = ["子","丑","寅","卯","辰","巳","午","未","申","酉","戌","亥"];
+                tSpan.innerText = `${tg[(now.getFullYear()-4)%10]}${dz[(now.getFullYear()-4)%12]}年 仲冬月`;
+            }
+        } else { tSpan.style.display = 'none'; }
+        const wmSpan = document.getElementById('bp-wm-span');
+        wmSpan.style.display = document.getElementById('toggle-watermark-cb').checked ? 'inline' : 'none';
+        wmSpan.innerText = document.getElementById('watermark-text-input').value.trim();
     };
 
-    // 拖拽卡片
-    const pc = document.getElementById('bp-floating-profile-card');
-    let pcIsD = false, pSx, pSy, pOx, pOy;
-    const pcStart = (e) => {
-        pcIsD = true; const p = e.touches ? e.touches[0] : e;
-        pSx = p.clientX; pSy = p.clientY;
-        pOx = pc.offsetLeft; pOy = pc.offsetTop;
-        pc.style.transform = 'none'; pc.style.zIndex = 1500;
+    window.bpSetTimeMode = function(m) {
+        timeMode = m;
+        document.getElementById('bp-t-solar').classList.toggle('active', m === 'solar');
+        document.getElementById('bp-t-lunar').classList.toggle('active', m === 'lunar');
+        bpUpdateMeta();
     };
-    const pcMove = (e) => {
-        if (!pcIsD) return; const p = e.touches ? e.touches[0] : e;
-        pc.style.left = (pOx + p.clientX - pSx) + 'px'; pc.style.top = (pOy + p.clientY - pSy) + 'px';
-    };
-    const pcEnd = () => { pcIsD = false; pc.style.zIndex = 1200; };
-    pc.addEventListener('mousedown', pcStart); window.addEventListener('mousemove', pcMove); window.addEventListener('mouseup', pcEnd);
-    pc.addEventListener('touchstart', pcStart, {passive:true}); window.addEventListener('touchmove', pcMove, {passive:true}); window.addEventListener('touchend', pcEnd);
 
-
+    // 事件绑定与抽屉开关
     document.getElementById('bp-btn-drawer').onclick = () => {
         document.getElementById('bp-right-drawer').classList.remove('open');
         document.getElementById('bp-left-drawer').classList.toggle('open');
-        document.getElementById('common-mask').classList.add('visible');
+        document.getElementById('bp-common-mask').classList.add('visible');
     };
     document.getElementById('bp-btn-settings').onclick = () => {
         document.getElementById('bp-left-drawer').classList.remove('open');
         document.getElementById('bp-right-drawer').classList.toggle('open');
-        document.getElementById('common-mask').classList.add('visible');
+        document.getElementById('bp-common-mask').classList.add('visible');
     };
     document.getElementById('bp-btn-author').onclick = () => {
         document.getElementById('bp-left-drawer').classList.remove('open');
         document.getElementById('bp-right-drawer').classList.add('open');
         document.getElementById('bp-author-box').scrollIntoView({behavior:'smooth'});
-        document.getElementById('common-mask').classList.add('visible');
+        document.getElementById('bp-common-mask').classList.add('visible');
     };
     document.getElementById('bp-btn-close').onclick = () => document.getElementById('bp-modal-container').style.display = 'none';
-
-    document.getElementById('common-mask').onclick = () => {
+    document.getElementById('bp-common-mask').onclick = () => {
         document.getElementById('bp-left-drawer').classList.remove('open');
         document.getElementById('bp-right-drawer').classList.remove('open');
-        document.getElementById('common-mask').classList.remove('visible');
+        document.getElementById('bp-common-mask').classList.remove('visible');
     };
 
     document.getElementById('bp-layout-v').onclick = function() {
@@ -701,7 +614,7 @@
     document.getElementById('bp-btn-save').onclick = () => {
         document.getElementById('bp-left-drawer').classList.remove('open');
         document.getElementById('bp-right-drawer').classList.remove('open');
-        document.getElementById('common-mask').classList.remove('visible');
+        document.getElementById('bp-common-mask').classList.remove('visible');
         document.getElementById('bp-collage-resizer').style.display = 'none';
         
         html2canvas(document.getElementById('bp-poster-canvas'), { scale: 4, useCORS: true, backgroundColor: null }).then(c => {
@@ -713,6 +626,7 @@
         });
     };
 
+    // 打开工坊核心函数 (优先提取选中文本)
     window.openBlackoutPoetry = function () {
         let targetText = "";
         const currentSel = window.getSelection() ? window.getSelection().toString().trim() : "";
@@ -732,21 +646,21 @@
                 }
             }
         }
-        if (!targetText) targetText = "空空如也，请划选一段话，或者与角色对话后再开启。";
+        if (!targetText) targetText = "空空如也，请先划选一段文字，或者与角色对话后再开启。";
         const clean = $('<div>').html(targetText).text().trim();
         document.getElementById('bp-modal-container').style.display = 'flex';
         window.bpRenderText(clean);
-        // 初始化时让卡片默认不显示，直到勾选
-        document.getElementById('bp-floating-profile-card').style.display = 'none';
     };
 
-    // 核心挂载
+    // 核心挂载：正式挂载进魔法棒抽屉！
     jQuery(async () => {
         try {
             const settingsHtml = await $.get('/scripts/extensions/third-party/st-blackout-poetry/settings.html');
             $('#extensions_settings').append(settingsHtml);
             $(document).on('click', '#bp_open_studio_btn', () => { window.openBlackoutPoetry(); });
             console.log("[剪报拼贴诗] 已强制护航挂载就绪！");
-        } catch (err) { console.warn("[剪报拼贴诗] 挂载重试...", err); }
+        } catch (err) {
+            console.warn("[剪报拼贴诗] 挂载重试...", err);
+        }
     });
 })();
