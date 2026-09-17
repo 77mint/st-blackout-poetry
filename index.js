@@ -1,6 +1,6 @@
-// SillyTavern 剪报拼贴诗扩展 (全局菜单版)
+// SillyTavern 剪报拼贴诗扩展 - 悬浮唤起版
 (function () {
-    // 动态注入 html2canvas 与字体源
+    // 注入依赖与字体
     if (!window.html2canvas) {
         const s = document.createElement('script');
         s.src = 'https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js';
@@ -11,27 +11,53 @@
     fontLink.href = 'https://fonts.googleapis.com/css2?family=Ma+Shan+Zheng&family=Noto+Sans+SC:wght@300;400;500&family=Noto+Serif+SC:wght@300;400;600&family=ZCOOL+XiaoWei&display=swap';
     document.head.appendChild(fontLink);
 
-    // 注入主样式
+    // 核心样式
     const styleEl = document.createElement('style');
     styleEl.innerHTML = `
         :root {
             --bp-page-bg: #F5F5F7;
             --bp-top-bg: #F7F5F0;
             --bp-top-cut-color: rgba(0,0,0,0.06);
-            --bp-top-font-size: 14.5px;
+            --bp-top-font-size: 14px;
             --bp-top-grain-opacity: 0;
             --bp-top-font-family: 'Noto Serif SC', serif;
             --bp-bottom-bg: #F7F5F0;
             --bp-scrap-bg: var(--bp-top-bg);
-            --bp-scrap-font-size: 14.5px;
+            --bp-scrap-font-size: 14px;
             --bp-bottom-grain-opacity: 0;
             --bp-scrap-font-family: 'Noto Serif SC', serif;
             --bp-shared-text-color: #1A1A1A;
         }
+
+        /* 屏幕右侧常驻可拖拽悬浮剪刀图标 */
+        #bp-float-btn {
+            position: fixed;
+            right: 12px;
+            bottom: 160px;
+            width: 42px;
+            height: 42px;
+            border-radius: 50%;
+            background: rgba(255, 255, 255, 0.92);
+            border: 1px solid rgba(0,0,0,0.12);
+            box-shadow: 0 4px 16px rgba(0,0,0,0.15);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            cursor: pointer;
+            z-index: 99998;
+            backdrop-filter: blur(10px);
+            -webkit-backdrop-filter: blur(10px);
+            touch-action: none;
+            transition: transform 0.15s;
+        }
+        #bp-float-btn:active { transform: scale(0.92); }
+        #bp-float-btn svg { width: 20px; height: 20px; stroke: #1C1C1C; stroke-width: 1.8; fill: none; }
+
+        /* 主弹窗容器 */
         #bp-modal-container {
             position: fixed; top: 0; left: 0; width: 100vw; height: 100vh;
             background: rgba(0,0,0,0.65); backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px);
-            z-index: 99999; display: none; justify-content: center; align-items: flex-start;
+            z-index: 999999; display: none; justify-content: center; align-items: flex-start;
             overflow-y: auto; padding: 70px 10px 40px 10px; font-family: -apple-system, BlinkMacSystemFont, sans-serif;
             box-sizing: border-box;
         }
@@ -90,7 +116,7 @@
         #bp-collage-resizer { position: absolute; z-index: 1000; display: flex; align-items: center; justify-content: center; }
         #bp-poster-canvas:not(.layout-horizontal) #bp-collage-resizer { bottom: 0; left: 0; width: 100%; height: 14px; cursor: ns-resize; }
         #bp-poster-canvas:not(.layout-horizontal) #bp-collage-resizer::after { content: ""; width: 32px; height: 3px; background: rgba(0,0,0,0.2); border-radius: 2px; }
-        #bp-poster-canvas.layout-horizontal #bp-collage-resizer { right: 0; top: 0; width: 14px; height: 100%; cursor: ew-resize; }
+        #bp-poster-canvas.layout-horizontal #bp-collage-resizer { right: 0; top: 0; width: 12px; height: 100%; cursor: ew-resize; }
         #bp-poster-canvas.layout-horizontal #bp-collage-resizer::after { content: ""; width: 3px; height: 32px; background: rgba(0,0,0,0.2); border-radius: 2px; }
 
         #bp-bottom-meta {
@@ -121,7 +147,7 @@
     `;
     document.head.appendChild(styleEl);
 
-    // 注入主 HTML 结构
+    // 注入主 DOM 与 悬浮剪刀按钮
     const modal = document.createElement('div');
     modal.id = 'bp-modal-container';
     modal.innerHTML = `
@@ -191,6 +217,65 @@
     `;
     document.body.appendChild(modal);
 
+    // 屏幕右侧常驻可拖动剪刀按钮
+    const floatBtn = document.createElement('div');
+    floatBtn.id = 'bp-float-btn';
+    floatBtn.title = '提取文字制作拼贴诗';
+    floatBtn.innerHTML = `<svg viewBox="0 0 24 24"><circle cx="6" cy="6" r="3"/><circle cx="6" cy="18" r="3"/><line x1="20" y1="4" x2="8.12" y2="15.88"/><line x1="14.47" y1="14.48" x2="20" y2="20"/><line x1="8.12" y1="8.12" x2="12" y2="12"/></svg>`;
+    document.body.appendChild(floatBtn);
+
+    // 拖动剪刀按钮逻辑
+    let isFBDrag = false, startY, origTop;
+    floatBtn.addEventListener('touchstart', (e) => {
+        isFBDrag = false;
+        startY = e.touches[0].clientY;
+        origTop = floatBtn.offsetTop;
+    }, {passive:true});
+    floatBtn.addEventListener('touchmove', (e) => {
+        const delta = e.touches[0].clientY - startY;
+        if (Math.abs(delta) > 5) isFBDrag = true;
+        let newT = origTop + delta;
+        newT = Math.max(60, Math.min(window.innerHeight - 60, newT));
+        floatBtn.style.top = newT + 'px';
+        floatBtn.style.bottom = 'auto';
+    }, {passive:true});
+
+    // 点击剪刀打开：优先提取选中文字，没有就抓最后一条消息
+    floatBtn.addEventListener('click', () => {
+        if (isFBDrag) return;
+        let targetText = window.getSelection().toString().trim();
+        
+        // 尝试从酒馆抓消息
+        if (!targetText && window.SillyTavern) {
+            const ctx = SillyTavern.getContext();
+            const chat = ctx.chat || [];
+            for (let i = chat.length - 1; i >= 0; i--) {
+                if (chat[i].is_user === false && chat[i].mes) {
+                    targetText = chat[i].mes;
+                    break;
+                }
+            }
+        }
+
+        // 兜底抓屏幕上最后的段落
+        if (!targetText) {
+            const paragraphs = document.querySelectorAll('#chat .mes_text');
+            if (paragraphs.length) {
+                targetText = paragraphs[paragraphs.length - 1].innerText;
+            }
+        }
+
+        if (!targetText) {
+            targetText = "这里空空如也，请先长按选中一段话，或者与角色对话后再点击。";
+        }
+
+        // 过滤 HTML
+        const clean = $('<div>').html(targetText).text().trim();
+        document.getElementById('bp-modal-container').style.display = 'flex';
+        window.bpRenderText(clean);
+    });
+
+    // 核心排版逻辑
     const authors = [
         { name: "张爱玲", pats: [["烫手的铁", "包上糖衣"], ["毫不设防", "吞下去"], ["成了", "烫手的铁"]] },
         { name: "史铁生", pats: [["二十五年", "默认之上"], ["漫长", "的使用历史"], ["默认", "仍然成立"]] },
@@ -354,7 +439,7 @@
 
     function bpApplyMask() {
         const raw = Array.from(document.querySelectorAll('.bp-char-node')).map(n => n.dataset.char).join('');
-        const charWords = raw.match(/莫诺马赫|林越安|高杉|桂/g) || ["莫诺马赫"];
+        const charWords = raw.match(/莫诺马赫|林越安|高杉|桂|柯梵恩|褚瓷/g) || ["柯梵恩", "褚瓷"];
         const userWords = ["我", "你", "他", "她"];
         document.querySelectorAll('.bp-char-node').forEach(n => n.classList.remove('mask-blur', 'mask-black', 'mask-symbol'));
         document.querySelectorAll('.bp-char-node').forEach((node, i) => {
@@ -384,7 +469,6 @@
         bpUpdateMeta();
     };
 
-    // 抽屉与界面开关
     document.getElementById('bp-btn-drawer').onclick = () => {
         document.getElementById('bp-right-drawer').classList.remove('open');
         document.getElementById('bp-left-drawer').classList.toggle('open');
@@ -409,7 +493,6 @@
         document.getElementById('bp-poster-canvas').classList.add('layout-horizontal');
     };
 
-    // 保存 4 倍超分辨率最高清
     document.getElementById('bp-btn-save').onclick = () => {
         document.getElementById('bp-left-drawer').classList.remove('open');
         document.getElementById('bp-right-drawer').classList.remove('open');
@@ -421,47 +504,5 @@
         });
     };
 
-    // 🌟 全局菜单注入
-    function injectToGlobalMenu() {
-        const extensionsMenu = $('#extensions_menu');
-        if (extensionsMenu.length && !$('#menu_collage_poetry_btn').length) {
-            const menuBtn = $(`
-                <div id="menu_collage_poetry_btn" class="list-group-item flex-container flexGapSm" title="将文字制作为剪报拼贴诗">
-                    <div class="fa-solid fa-scissors extensionsMenuIcon"></div>
-                    <div class="extensionsMenuText">剪报拼贴</div>
-                </div>
-            `);
-
-            menuBtn.on('click', () => {
-                const ctx = SillyTavern.getContext();
-                let targetText = window.getSelection().toString().trim();
-                
-                if (!targetText) {
-                    const chat = ctx.chat || [];
-                    for (let i = chat.length - 1; i >= 0; i--) {
-                        if (chat[i].is_user === false) {
-                            targetText = chat[i].mes;
-                            break;
-                        }
-                    }
-                }
-                
-                if (!targetText) {
-                    targetText = "这里空空如也，请先与角色进行对话，或者手动在页面上划选一段文字。";
-                }
-
-                const cleanText = $('<div>').html(targetText).text();
-
-                document.getElementById('bp-modal-container').style.display = 'flex';
-                window.bpRenderText(cleanText);
-            });
-
-            extensionsMenu.append(menuBtn);
-        }
-    }
-
-    jQuery(async () => {
-        setTimeout(injectToGlobalMenu, 2000);
-        console.log("[剪报拼贴诗] 全局菜单注入完毕！");
-    });
+    console.log("[剪报拼贴诗] 悬浮按钮已就绪！");
 })();
