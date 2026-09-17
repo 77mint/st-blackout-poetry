@@ -1,6 +1,5 @@
-// SillyTavern 剪报拼贴诗扩展 - 悬浮唤起版
+// SillyTavern 剪报拼贴诗扩展 - 圣代魔棒精准选区版
 (function () {
-    // 注入依赖与字体
     if (!window.html2canvas) {
         const s = document.createElement('script');
         s.src = 'https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js';
@@ -11,7 +10,6 @@
     fontLink.href = 'https://fonts.googleapis.com/css2?family=Ma+Shan+Zheng&family=Noto+Sans+SC:wght@300;400;500&family=Noto+Serif+SC:wght@300;400;600&family=ZCOOL+XiaoWei&display=swap';
     document.head.appendChild(fontLink);
 
-    // 核心样式
     const styleEl = document.createElement('style');
     styleEl.innerHTML = `
         :root {
@@ -29,31 +27,11 @@
             --bp-shared-text-color: #1A1A1A;
         }
 
-        /* 屏幕右侧常驻可拖拽悬浮剪刀图标 */
-        #bp-float-btn {
-            position: fixed;
-            right: 12px;
-            bottom: 160px;
-            width: 42px;
-            height: 42px;
-            border-radius: 50%;
-            background: rgba(255, 255, 255, 0.92);
-            border: 1px solid rgba(0,0,0,0.12);
-            box-shadow: 0 4px 16px rgba(0,0,0,0.15);
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            cursor: pointer;
-            z-index: 99998;
-            backdrop-filter: blur(10px);
-            -webkit-backdrop-filter: blur(10px);
-            touch-action: none;
-            transition: transform 0.15s;
+        .bp-parfait-img {
+            width: 22px; height: 22px; object-fit: contain;
+            mix-blend-mode: multiply; vertical-align: middle;
         }
-        #bp-float-btn:active { transform: scale(0.92); }
-        #bp-float-btn svg { width: 20px; height: 20px; stroke: #1C1C1C; stroke-width: 1.8; fill: none; }
 
-        /* 主弹窗容器 */
         #bp-modal-container {
             position: fixed; top: 0; left: 0; width: 100vw; height: 100vh;
             background: rgba(0,0,0,0.65); backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px);
@@ -126,7 +104,7 @@
         }
         .bp-drawer {
             position: fixed; top: 0; width: 280px; height: 100vh; background: rgba(255, 255, 255, 0.98);
-            backdrop-filter: blur(20px); box-shadow: 0 0 35px rgba(0,0,0,0.15); z-index: 100002;
+            backdrop-filter: blur(20px); box-shadow: 0 0 35px rgba(0,0,0,0.15); z-index: 1000002;
             display: flex; flex-direction: column; padding: 25px 16px; overflow-y: auto; font-size: 11.5px;
             color: #222; transition: all 0.3s;
         }
@@ -147,7 +125,7 @@
     `;
     document.head.appendChild(styleEl);
 
-    // 注入主 DOM 与 悬浮剪刀按钮
+    // 注入主 DOM
     const modal = document.createElement('div');
     modal.id = 'bp-modal-container';
     modal.innerHTML = `
@@ -217,65 +195,15 @@
     `;
     document.body.appendChild(modal);
 
-    // 屏幕右侧常驻可拖动剪刀按钮
-    const floatBtn = document.createElement('div');
-    floatBtn.id = 'bp-float-btn';
-    floatBtn.title = '提取文字制作拼贴诗';
-    floatBtn.innerHTML = `<svg viewBox="0 0 24 24"><circle cx="6" cy="6" r="3"/><circle cx="6" cy="18" r="3"/><line x1="20" y1="4" x2="8.12" y2="15.88"/><line x1="14.47" y1="14.48" x2="20" y2="20"/><line x1="8.12" y1="8.12" x2="12" y2="12"/></svg>`;
-    document.body.appendChild(floatBtn);
-
-    // 拖动剪刀按钮逻辑
-    let isFBDrag = false, startY, origTop;
-    floatBtn.addEventListener('touchstart', (e) => {
-        isFBDrag = false;
-        startY = e.touches[0].clientY;
-        origTop = floatBtn.offsetTop;
-    }, {passive:true});
-    floatBtn.addEventListener('touchmove', (e) => {
-        const delta = e.touches[0].clientY - startY;
-        if (Math.abs(delta) > 5) isFBDrag = true;
-        let newT = origTop + delta;
-        newT = Math.max(60, Math.min(window.innerHeight - 60, newT));
-        floatBtn.style.top = newT + 'px';
-        floatBtn.style.bottom = 'auto';
-    }, {passive:true});
-
-    // 点击剪刀打开：优先提取选中文字，没有就抓最后一条消息
-    floatBtn.addEventListener('click', () => {
-        if (isFBDrag) return;
-        let targetText = window.getSelection().toString().trim();
-        
-        // 尝试从酒馆抓消息
-        if (!targetText && window.SillyTavern) {
-            const ctx = SillyTavern.getContext();
-            const chat = ctx.chat || [];
-            for (let i = chat.length - 1; i >= 0; i--) {
-                if (chat[i].is_user === false && chat[i].mes) {
-                    targetText = chat[i].mes;
-                    break;
-                }
-            }
+    // 🌟 核心：手机端选区自动记忆雷达 (只要手指划过文字就死死记住)
+    let lastUserSelectedText = "";
+    document.addEventListener('selectionchange', () => {
+        const sel = window.getSelection();
+        if (sel && sel.toString().trim().length > 0) {
+            lastUserSelectedText = sel.toString().trim();
         }
-
-        // 兜底抓屏幕上最后的段落
-        if (!targetText) {
-            const paragraphs = document.querySelectorAll('#chat .mes_text');
-            if (paragraphs.length) {
-                targetText = paragraphs[paragraphs.length - 1].innerText;
-            }
-        }
-
-        if (!targetText) {
-            targetText = "这里空空如也，请先长按选中一段话，或者与角色对话后再点击。";
-        }
-
-        // 过滤 HTML
-        const clean = $('<div>').html(targetText).text().trim();
-        document.getElementById('bp-modal-container').style.display = 'flex';
-        window.bpRenderText(clean);
     });
 
-    // 核心排版逻辑
     const authors = [
         { name: "张爱玲", pats: [["烫手的铁", "包上糖衣"], ["毫不设防", "吞下去"], ["成了", "烫手的铁"]] },
         { name: "史铁生", pats: [["二十五年", "默认之上"], ["漫长", "的使用历史"], ["默认", "仍然成立"]] },
@@ -504,5 +432,53 @@
         });
     };
 
-    console.log("[剪报拼贴诗] 悬浮按钮已就绪！");
+    // 🌟 打开工坊：严格先用【记忆选区】，没有才兜底整条消息
+    window.openBlackoutPoetry = function () {
+        let targetText = "";
+
+        // 1. 先查当前手机手指是不是刚划选了文本
+        const currentSel = window.getSelection() ? window.getSelection().toString().trim() : "";
+        if (currentSel) {
+            targetText = currentSel;
+        } else if (lastUserSelectedText) {
+            // 2. 命中记忆选区（手指划过松开后的文本）！
+            targetText = lastUserSelectedText;
+            lastUserSelectedText = ""; // 用完即清，防止下次污染
+        }
+
+        // 3. 只有当用户确实没有划选任何字，才去拿最后一条 AI 消息
+        if (!targetText && window.SillyTavern) {
+            const ctx = SillyTavern.getContext();
+            const chat = ctx.chat || [];
+            for (let i = chat.length - 1; i >= 0; i--) {
+                if (chat[i].is_user === false && chat[i].mes) {
+                    targetText = chat[i].mes;
+                    break;
+                }
+            }
+        }
+
+        if (!targetText) {
+            targetText = "这里空空如也，请先用手指划选一段话，或者与角色对话后再开启。";
+        }
+
+        const clean = $('<div>').html(targetText).text().trim();
+        document.getElementById('bp-modal-container').style.display = 'flex';
+        window.bpRenderText(clean);
+    };
+
+    // 挂载进魔法棒抽屉
+    jQuery(async () => {
+        try {
+            const settingsHtml = await $.get('/scripts/extensions/third-party/st-blackout-poetry/settings.html');
+            $('#extensions_settings').append(settingsHtml);
+
+            $(document).on('click', '#bp_open_studio_btn', () => {
+                window.openBlackoutPoetry();
+            });
+            console.log("[剪报拼贴诗] 精准选区版就绪！");
+        } catch (err) {
+            console.warn("[剪报拼贴诗] 挂载重试...", err);
+        }
+    });
 })();
