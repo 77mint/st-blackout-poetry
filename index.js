@@ -1,5 +1,6 @@
-// SillyTavern 剪报拼贴诗扩展
+// SillyTavern 剪报拼贴诗扩展 (全局菜单版)
 (function () {
+    // 动态注入 html2canvas 与字体源
     if (!window.html2canvas) {
         const s = document.createElement('script');
         s.src = 'https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js';
@@ -10,18 +11,19 @@
     fontLink.href = 'https://fonts.googleapis.com/css2?family=Ma+Shan+Zheng&family=Noto+Sans+SC:wght@300;400;500&family=Noto+Serif+SC:wght@300;400;600&family=ZCOOL+XiaoWei&display=swap';
     document.head.appendChild(fontLink);
 
+    // 注入主样式
     const styleEl = document.createElement('style');
     styleEl.innerHTML = `
         :root {
             --bp-page-bg: #F5F5F7;
             --bp-top-bg: #F7F5F0;
             --bp-top-cut-color: rgba(0,0,0,0.06);
-            --bp-top-font-size: 14px;
+            --bp-top-font-size: 14.5px;
             --bp-top-grain-opacity: 0;
             --bp-top-font-family: 'Noto Serif SC', serif;
             --bp-bottom-bg: #F7F5F0;
             --bp-scrap-bg: var(--bp-top-bg);
-            --bp-scrap-font-size: 14px;
+            --bp-scrap-font-size: 14.5px;
             --bp-bottom-grain-opacity: 0;
             --bp-scrap-font-family: 'Noto Serif SC', serif;
             --bp-shared-text-color: #1A1A1A;
@@ -88,7 +90,7 @@
         #bp-collage-resizer { position: absolute; z-index: 1000; display: flex; align-items: center; justify-content: center; }
         #bp-poster-canvas:not(.layout-horizontal) #bp-collage-resizer { bottom: 0; left: 0; width: 100%; height: 14px; cursor: ns-resize; }
         #bp-poster-canvas:not(.layout-horizontal) #bp-collage-resizer::after { content: ""; width: 32px; height: 3px; background: rgba(0,0,0,0.2); border-radius: 2px; }
-        #bp-poster-canvas.layout-horizontal #bp-collage-resizer { right: 0; top: 0; width: 12px; height: 100%; cursor: ew-resize; }
+        #bp-poster-canvas.layout-horizontal #bp-collage-resizer { right: 0; top: 0; width: 14px; height: 100%; cursor: ew-resize; }
         #bp-poster-canvas.layout-horizontal #bp-collage-resizer::after { content: ""; width: 3px; height: 32px; background: rgba(0,0,0,0.2); border-radius: 2px; }
 
         #bp-bottom-meta {
@@ -119,6 +121,7 @@
     `;
     document.head.appendChild(styleEl);
 
+    // 注入主 HTML 结构
     const modal = document.createElement('div');
     modal.id = 'bp-modal-container';
     modal.innerHTML = `
@@ -381,6 +384,7 @@
         bpUpdateMeta();
     };
 
+    // 抽屉与界面开关
     document.getElementById('bp-btn-drawer').onclick = () => {
         document.getElementById('bp-right-drawer').classList.remove('open');
         document.getElementById('bp-left-drawer').classList.toggle('open');
@@ -405,6 +409,7 @@
         document.getElementById('bp-poster-canvas').classList.add('layout-horizontal');
     };
 
+    // 保存 4 倍超分辨率最高清
     document.getElementById('bp-btn-save').onclick = () => {
         document.getElementById('bp-left-drawer').classList.remove('open');
         document.getElementById('bp-right-drawer').classList.remove('open');
@@ -416,29 +421,47 @@
         });
     };
 
-    const addSTButton = (mesId) => {
-        const mesBlock = $(`#chat .mes[mesid="${mesId}"]`);
-        const extra = mesBlock.find('.extraMesButtons');
-        if (extra.length && !extra.find('.mes-blackout-poetry-btn').length) {
-            const btn = $(`<div title="以此消息做拼贴诗" class="mes_button mes-blackout-poetry-btn fa-solid fa-scissors"></div>`);
-            btn.on('click', () => {
+    // 🌟 全局菜单注入
+    function injectToGlobalMenu() {
+        const extensionsMenu = $('#extensions_menu');
+        if (extensionsMenu.length && !$('#menu_collage_poetry_btn').length) {
+            const menuBtn = $(`
+                <div id="menu_collage_poetry_btn" class="list-group-item flex-container flexGapSm" title="将文字制作为剪报拼贴诗">
+                    <div class="fa-solid fa-scissors extensionsMenuIcon"></div>
+                    <div class="extensionsMenuText">剪报拼贴</div>
+                </div>
+            `);
+
+            menuBtn.on('click', () => {
                 const ctx = SillyTavern.getContext();
-                const text = ctx.chat[mesId]?.mes || "";
-                if (text) {
-                    document.getElementById('bp-modal-container').style.display = 'flex';
-                    bpRenderText(text);
+                let targetText = window.getSelection().toString().trim();
+                
+                if (!targetText) {
+                    const chat = ctx.chat || [];
+                    for (let i = chat.length - 1; i >= 0; i--) {
+                        if (chat[i].is_user === false) {
+                            targetText = chat[i].mes;
+                            break;
+                        }
+                    }
                 }
+                
+                if (!targetText) {
+                    targetText = "这里空空如也，请先与角色进行对话，或者手动在页面上划选一段文字。";
+                }
+
+                const cleanText = $('<div>').html(targetText).text();
+
+                document.getElementById('bp-modal-container').style.display = 'flex';
+                window.bpRenderText(cleanText);
             });
-            extra.append(btn);
+
+            extensionsMenu.append(menuBtn);
         }
-    };
+    }
 
     jQuery(async () => {
-        const ctx = SillyTavern.getContext();
-        ctx.eventSource.on(ctx.event_types.MESSAGE_RECEIVED, (id) => addSTButton(id));
-        ctx.eventSource.on(ctx.event_types.CHAT_COMPLETED, () => {
-            $('#chat .mes').each(function() { addSTButton($(this).attr('mesid')); });
-        });
-        console.log("[剪报拼贴诗] 已就绪！");
+        setTimeout(injectToGlobalMenu, 2000);
+        console.log("[剪报拼贴诗] 全局菜单注入完毕！");
     });
 })();
