@@ -1,4 +1,4 @@
-// SillyTavern 剪报拼贴诗扩展 - 圣代魔棒精准选区版
+// SillyTavern 剪报拼贴诗扩展 - 终极无暇修复版
 (function () {
     if (!window.html2canvas) {
         const s = document.createElement('script');
@@ -13,61 +13,65 @@
     const styleEl = document.createElement('style');
     styleEl.innerHTML = `
         :root {
-            --bp-page-bg: #F5F5F7;
             --bp-top-bg: #F7F5F0;
             --bp-top-cut-color: rgba(0,0,0,0.06);
-            --bp-top-font-size: 14px;
+            --bp-top-font-size: 14.5px;
             --bp-top-grain-opacity: 0;
             --bp-top-font-family: 'Noto Serif SC', serif;
             --bp-bottom-bg: #F7F5F0;
             --bp-scrap-bg: var(--bp-top-bg);
-            --bp-scrap-font-size: 14px;
+            --bp-scrap-font-size: 14.5px;
             --bp-bottom-grain-opacity: 0;
             --bp-scrap-font-family: 'Noto Serif SC', serif;
             --bp-shared-text-color: #1A1A1A;
         }
 
-        .bp-parfait-img {
-            width: 22px; height: 22px; object-fit: contain;
-            mix-blend-mode: multiply; vertical-align: middle;
+        #bp-modal-container {
+            position: fixed !important; top: 0 !important; left: 0 !important; 
+            width: 100vw !important; height: 100vh !important;
+            background: rgba(20,20,20,0.98) !important;
+            z-index: 2147483647 !important;
+            display: none; justify-content: center; align-items: flex-start;
+            overflow-y: auto !important; padding: 70px 10px 50px 10px; 
+            font-family: -apple-system, sans-serif !important;
         }
 
-        #bp-modal-container {
-            position: fixed; top: 0; left: 0; width: 100vw; height: 100vh;
-            background: rgba(0,0,0,0.65); backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px);
-            z-index: 999999; display: none; justify-content: center; align-items: flex-start;
-            overflow-y: auto; padding: 70px 10px 40px 10px; font-family: -apple-system, BlinkMacSystemFont, sans-serif;
-            box-sizing: border-box;
-        }
-        #bp-viewport-box { position: relative; display: flex; flex-direction: column; align-items: center; width: 100%; max-width: 440px; }
+        #bp-viewport-box { position: relative; display: flex; flex-direction: column; align-items: center; width: 100%; max-width: 440px; margin: 0 auto; }
+        
         #bp-top-left-bar { position: absolute; top: -52px; left: 0; display: flex; align-items: center; gap: 6px; }
         #bp-top-right-bar { position: absolute; top: -52px; right: 0; display: flex; align-items: center; gap: 6px; }
+        
         .bp-icon-btn {
             width: 36px; height: 36px; display: flex; justify-content: center; align-items: center; cursor: pointer;
-            background: rgba(255, 255, 255, 0.95); border: 1px solid rgba(0, 0, 0, 0.1); border-radius: 4px;
-            box-shadow: 0 4px 12px rgba(0,0,0,0.08);
+            background: #FFFFFF !important; border: 1px solid #CCC !important; border-radius: 4px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.2) !important; opacity: 1 !important; visibility: visible !important;
         }
         .bp-icon-btn svg { width: 18px; height: 18px; stroke: #1C1C1C; stroke-width: 1.6; fill: none; }
-        .bp-layout-toggle { display: flex; background: rgba(255, 255, 255, 0.95); border: 1px solid rgba(0, 0, 0, 0.1); border-radius: 4px; padding: 2px; }
+        
+        .bp-layout-toggle { display: flex; background: #FFFFFF !important; border: 1px solid #CCC !important; border-radius: 4px; padding: 2px; box-shadow: 0 4px 12px rgba(0,0,0,0.2) !important; }
         .bp-layout-btn { background: transparent; border: none; color: #666; font-size: 11px; padding: 6px 10px; border-radius: 2px; cursor: pointer; }
-        .bp-layout-btn.active { background: #1C1C1C; color: #FFF; font-weight: 500; }
+        .bp-layout-btn.active { background: #1C1C1C !important; color: #FFF !important; font-weight: 500; }
         
         #bp-poster-canvas {
-            box-shadow: 0 15px 50px rgba(0, 0, 0, 0.3); position: relative; display: flex; flex-direction: column;
-            border: 1px solid rgba(0,0,0,0.06); touch-action: none; width: 100%; max-width: 420px; background: #FFF;
+            box-shadow: 0 25px 60px rgba(0,0,0,0.8) !important; position: relative; display: flex; flex-direction: column;
+            border: 1px solid rgba(0,0,0,0.1); touch-action: none; width: 100%; max-width: 420px; background: #FFF !important;
+            opacity: 1 !important; visibility: visible !important; filter: none !important; margin: 0 auto;
         }
         #bp-poster-canvas.layout-horizontal { flex-direction: row !important; max-width: 680px; width: 100%; }
+        
         #bp-source-area {
-            background-color: var(--bp-top-bg); background-size: cover; background-position: center;
-            padding: 34px 24px 24px 24px; position: relative; flex-shrink: 0; height: auto;
-            font-family: var(--bp-top-font-family);
+            background-color: var(--bp-top-bg) !important; background-size: cover; background-position: center;
+            padding: 40px 36px 30px 36px; position: relative; flex-shrink: 0; height: auto;
+            font-family: var(--bp-top-font-family); opacity: 1 !important;
         }
         #bp-poster-canvas.layout-horizontal #bp-source-area { width: 50%; }
+        
         .bp-text-flow {
-            color: var(--bp-shared-text-color); font-size: var(--bp-top-font-size); line-height: 2.2;
-            letter-spacing: 0.06em; text-align: justify; word-break: break-all;
+            color: var(--bp-shared-text-color) !important; font-size: var(--bp-top-font-size); line-height: 2.2;
+            letter-spacing: 0.06em; text-align: justify; word-break: break-all; opacity: 1 !important;
         }
-        .bp-char-node { cursor: pointer; position: relative; display: inline-block; }
+        
+        .bp-char-node { cursor: pointer; position: relative; display: inline-block; color: var(--bp-shared-text-color) !important; }
         .bp-char-node.is-cut { color: transparent !important; }
         .bp-char-node.is-cut::after {
             content: ""; position: absolute; top: 2px; bottom: 2px; left: 0; right: 0;
@@ -79,56 +83,107 @@
         .bp-char-node.mask-symbol::after { content: "×"; position: absolute; left: 0; top: 0; width: 100%; height: 100%; color: var(--bp-shared-text-color); display: flex; align-items: center; justify-content: center; font-size: 13px; }
 
         #bp-collage-area {
-            position: relative; background-color: var(--bp-bottom-bg); background-size: cover; background-position: center;
+            position: relative; background-color: var(--bp-bottom-bg) !important; background-size: cover; background-position: center;
             border-top: 1px solid rgba(0, 0, 0, 0.04); flex-shrink: 0; min-height: 180px; min-width: 180px;
-            overflow: hidden; font-family: var(--bp-scrap-font-family); padding-bottom: 35px;
+            overflow: hidden; font-family: var(--bp-scrap-font-family); padding-bottom: 35px; opacity: 1 !important;
         }
         #bp-poster-canvas.layout-horizontal #bp-collage-area { border-top: none; border-left: 1px solid rgba(0, 0, 0, 0.04); width: 50%; }
+        
         .bp-scrap-word {
-            position: absolute; background-color: var(--bp-scrap-bg); color: var(--bp-shared-text-color);
+            position: absolute; background-color: var(--bp-scrap-bg) !important; color: var(--bp-shared-text-color) !important;
             padding: 3px 6px; font-size: var(--bp-scrap-font-size); line-height: 1; border-radius: 1px;
-            cursor: grab; box-shadow: 1px 2px 5px rgba(0,0,0,0.15); font-family: inherit; touch-action: none;
+            cursor: grab; box-shadow: 1px 2px 5px rgba(0,0,0,0.15) !important; font-family: inherit; touch-action: none;
             z-index: 10; display: inline-flex; justify-content: center; align-items: center; width: 26px; height: 30px;
+            opacity: 1 !important;
         }
-        .bp-scrap-word:active { cursor: grabbing; box-shadow: 2px 6px 14px rgba(0,0,0,0.25); z-index: 100; }
+        .bp-scrap-word:active { cursor: grabbing; box-shadow: 2px 6px 14px rgba(0,0,0,0.25) !important; z-index: 100; }
+        
         #bp-collage-resizer { position: absolute; z-index: 1000; display: flex; align-items: center; justify-content: center; }
         #bp-poster-canvas:not(.layout-horizontal) #bp-collage-resizer { bottom: 0; left: 0; width: 100%; height: 14px; cursor: ns-resize; }
         #bp-poster-canvas:not(.layout-horizontal) #bp-collage-resizer::after { content: ""; width: 32px; height: 3px; background: rgba(0,0,0,0.2); border-radius: 2px; }
-        #bp-poster-canvas.layout-horizontal #bp-collage-resizer { right: 0; top: 0; width: 12px; height: 100%; cursor: ew-resize; }
+        #bp-poster-canvas.layout-horizontal #bp-collage-resizer { right: 0; top: 0; width: 14px; height: 100%; cursor: ew-resize; }
         #bp-poster-canvas.layout-horizontal #bp-collage-resizer::after { content: ""; width: 3px; height: 32px; background: rgba(0,0,0,0.2); border-radius: 2px; }
+
+        .texture-layer { position: absolute; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; mix-blend-mode: overlay; z-index: 800; }
+        #top-texture { opacity: var(--bp-top-grain-opacity); }
+        #bottom-texture { opacity: var(--bp-bottom-grain-opacity); }
 
         #bp-bottom-meta {
             position: absolute; bottom: 12px; left: 0; width: 100%; display: flex;
             justify-content: center; align-items: center; gap: 12px; font-size: 8.5px;
-            letter-spacing: 0.1em; color: var(--bp-shared-text-color); opacity: 0.45; pointer-events: none;
+            letter-spacing: 0.1em; color: var(--bp-shared-text-color) !important; opacity: 0.45 !important; pointer-events: none;
         }
+
+        #bp-floating-profile-card {
+            position: absolute; top: 20px; left: 50%; transform: translateX(-50%);
+            display: flex; flex-direction: column; align-items: center; cursor: grab; z-index: 1200; touch-action: none;
+            padding: 6px 12px; border-radius: 4px; transition: background 0.15s; display:none;
+        }
+        #bp-floating-profile-card:active { cursor: grabbing; }
+        .profile-avatars-row { display: flex; align-items: center; gap: 12px; margin-bottom: 8px; }
+        .card-avatar-circle { width: 48px; height: 48px; border-radius: 50%; object-fit: cover; box-shadow: 0 2px 8px rgba(0, 0, 0, 0.12); border: 1.5px solid #FFFFFF; }
+        .profile-names-row { display: flex; align-items: center; gap: 8px; font-size: 13px; font-weight: 600; color: var(--bp-shared-text-color); letter-spacing: 0.1em; margin-bottom: 4px; }
+        .profile-names-divider { color: #AAA; font-weight: 300; }
+        .profile-date-row { font-size: 9.5px; color: #8E8E8E; letter-spacing: 0.08em; margin-bottom: 8px; }
+        .profile-line-divider { width: 38px; height: 1px; background-color: #D6D6D6; }
+
         .bp-drawer {
-            position: fixed; top: 0; width: 280px; height: 100vh; background: rgba(255, 255, 255, 0.98);
-            backdrop-filter: blur(20px); box-shadow: 0 0 35px rgba(0,0,0,0.15); z-index: 1000002;
+            position: fixed !important; top: 0 !important; width: 280px !important; height: 100vh !important; 
+            background: #FAFAFA !important; box-shadow: 0 0 35px rgba(0,0,0,0.5) !important; z-index: 2147483647 !important;
             display: flex; flex-direction: column; padding: 25px 16px; overflow-y: auto; font-size: 11.5px;
-            color: #222; transition: all 0.3s;
+            color: #222 !important; transition: all 0.3s;
         }
         #bp-left-drawer { left: -300px; }
         #bp-left-drawer.open { left: 0; }
         #bp-right-drawer { right: -300px; }
         #bp-right-drawer.open { right: 0; }
-        .bp-drawer-section { margin-bottom: 16px; border-bottom: 1px solid #EEE; padding-bottom: 12px; }
-        .bp-section-title { font-size: 10px; color: #888; margin-bottom: 6px; font-weight: 600; text-transform: uppercase; }
+        
+        .bp-drawer-section { margin-bottom: 16px; border-bottom: 1px solid #DDD; padding-bottom: 12px; }
+        .bp-section-title { font-size: 10px; color: #555; margin-bottom: 6px; font-weight: 600; text-transform: uppercase; }
         .bp-chip-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 4px; margin-bottom: 6px; }
-        .bp-action-chip { background: #F4F4F4; border: 1px solid #DDD; color: #333; padding: 6px 0; text-align: center; border-radius: 2px; cursor: pointer; font-size: 10px; }
-        .bp-action-chip.active { background: #1C1C1C; color: #FFF; }
-        .bp-mask-row { display: flex; align-items: center; gap: 8px; cursor: pointer; font-size: 12px; margin-bottom: 6px; }
-        .bp-font-item { display: flex; justify-content: space-between; background: #FFF; border: 1px solid #DDD; padding: 5px 8px; cursor: pointer; margin-bottom: 4px; }
-        .bp-font-item.selected { border-color: #000; background: #F0F0F0; font-weight: bold; }
+        .bp-action-chip { background: #EEE !important; border: 1px solid #CCC !important; color: #111 !important; padding: 6px 0; text-align: center; border-radius: 2px; cursor: pointer; font-size: 10px; }
+        .bp-action-chip.active { background: #1C1C1C !important; color: #FFF !important; }
+        .bp-mask-row { display: flex; align-items: center; gap: 8px; cursor: pointer; font-size: 12px; margin-bottom: 6px; color: #111; }
+        .bp-font-item { display: flex; justify-content: space-between; background: #FFF !important; border: 1px solid #CCC !important; padding: 5px 8px; cursor: pointer; margin-bottom: 4px; color: #111; }
+        .bp-font-item.selected { border-color: #000 !important; background: #E5E5E5 !important; font-weight: bold; }
         .bp-author-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 5px; max-height: 240px; overflow-y: auto; }
-        .bp-author-btn { background: #F5F5F5; border: 1px solid #DDD; padding: 8px; font-size: 11px; text-align: center; border-radius: 2px; cursor: pointer; }
+        .bp-author-btn { background: #EEE !important; border: 1px solid #CCC !important; padding: 8px; font-size: 11px; text-align: center; border-radius: 2px; cursor: pointer; color:#111 !important; }
+        
+        .color-group-label { font-size: 9px; color: #999; margin: 4px 0 2px 0; }
+        .color-palette-row { display: grid; grid-template-columns: repeat(6, 1fr); gap: 4px; margin-bottom: 5px; }
+        .color-dot { height: 20px; border-radius: 2px; border: 1px solid rgba(0, 0, 0, 0.1); cursor: pointer; transition: transform 0.15s; }
+        .color-dot:hover { transform: scale(1.1); z-index: 2; }
+        .color-picker-wrapper { display: flex; align-items: center; gap: 6px; margin: 4px 0 8px 0; background: #EEE; padding: 4px 8px; border-radius: 2px; border: 1px solid #CCC; }
+        .color-picker-input { width: 22px; height: 22px; border: none; padding: 0; cursor: pointer; background: none; }
+        
+        .setting-field { margin-bottom: 12px; }
+        .setting-field label { display: block; font-size: 9.5px; color: #777; margin-bottom: 4px; }
+        .setting-input { width: 100%; background: #FFF; border: 1px solid #CCC; padding: 6px 8px; font-size: 11px; border-radius: 2px; outline: none; color: #111; }
+        .setting-toggle-row { display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px; color: #111; font-weight: 500;}
+        .avatar-upload-pair { display: flex; gap: 10px; margin-top: 6px; }
+        .avatar-preview-box { width: 44px; height: 44px; border-radius: 50%; border: 1px dashed #999; display: flex; align-items: center; justify-content: center; overflow: hidden; position: relative; background: #EEE; flex-shrink: 0; }
+        .avatar-preview-box img { width: 100%; height: 100%; object-fit: cover; }
+        .file-wrapper { position: relative; overflow: hidden; display: block; margin-top: 4px; }
+        .file-wrapper input[type="file"] { position: absolute; left: 0; top: 0; opacity: 0; cursor: pointer; width: 100%; height: 100%; }
+        .slider-row { display: flex; align-items: center; justify-content: space-between; margin-top: 6px; }
+        .slider-row span { color: #555; font-size: 9.5px; }
+        .slider-row input[type="range"] { width: 150px; accent-color: #000; }
     `;
     document.head.appendChild(styleEl);
 
-    // 注入主 DOM
     const modal = document.createElement('div');
     modal.id = 'bp-modal-container';
     modal.innerHTML = `
+        <svg style="display:none;">
+            <defs>
+                <filter id="tex-frosted-filter"><feTurbulence type="fractalNoise" baseFrequency="0.95" numOctaves="4" stitchTiles="stitch"/></filter>
+                <filter id="tex-noise-filter"><feTurbulence type="fractalNoise" baseFrequency="0.55" numOctaves="2" stitchTiles="stitch"/></filter>
+                <filter id="tex-paper-filter"><feTurbulence type="turbulence" baseFrequency="0.04" numOctaves="5" result="noise"/><feDiffuseLighting in="noise" lighting-color="#fff" surfaceScale="2"><feDistantLight azimuth="45" elevation="60"/></feDiffuseLighting></filter>
+                <filter id="tex-fabric-filter"><feTurbulence type="fractalNoise" baseFrequency="0.3 0.05" numOctaves="3" stitchTiles="stitch"/></filter>
+                <filter id="tex-scratch-filter"><feTurbulence type="turbulence" baseFrequency="0.01 0.4" numOctaves="2" stitchTiles="stitch"/></filter>
+            </defs>
+        </svg>
+
         <div id="bp-viewport-box">
             <div id="bp-top-left-bar">
                 <div class="bp-icon-btn" id="bp-btn-drawer"><svg viewBox="0 0 24 24"><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="18" x2="21" y2="18"/></svg></div>
@@ -144,13 +199,32 @@
                 <div class="bp-icon-btn" id="bp-btn-close"><svg viewBox="0 0 24 24"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></div>
             </div>
             <div id="bp-poster-canvas">
-                <div id="bp-source-area"><div class="bp-text-flow" id="bpTextFlow"></div></div>
+                <div id="bp-floating-profile-card">
+                    <div class="profile-avatars-row">
+                        <img class="card-avatar-circle" id="card-avatar-1" src="">
+                        <img class="card-avatar-circle" id="card-avatar-2" src="">
+                    </div>
+                    <div class="profile-names-row">
+                        <span id="card-name-1">USER</span>
+                        <span class="profile-names-divider" id="card-name-divider">·</span>
+                        <span id="card-name-2">CHAR</span>
+                    </div>
+                    <div class="profile-date-row" id="card-date"></div>
+                    <div class="profile-line-divider"></div>
+                </div>
+
+                <div id="bp-source-area">
+                    <div class="bp-text-flow" id="bpTextFlow"></div>
+                    <div class="texture-layer" id="top-texture" style="background:none;"></div>
+                </div>
                 <div id="bp-collage-area">
-                    <div id="bp-bottom-meta"><span id="bp-time-span"></span><span id="bp-wm-span">SillyTavern</span></div>
+                    <div class="texture-layer" id="bottom-texture" style="background:none;"></div>
+                    <div id="bp-bottom-meta"><span id="bp-time-span"></span><span id="bp-wm-span"></span></div>
                     <div id="bp-collage-resizer"></div>
                 </div>
             </div>
         </div>
+        
         <div class="bp-drawer" id="bp-left-drawer">
             <div class="bp-drawer-section">
                 <div class="bp-section-title">原地排齐</div>
@@ -162,14 +236,104 @@
                 <button class="bp-action-chip" style="width:100%; margin-top:4px;" onclick="window.bpResetCuts()">复原全部字</button>
             </div>
             <div class="bp-drawer-section">
-                <div class="bp-section-title">字体选择</div>
-                <div class="bp-font-item selected" onclick="window.bpSetFont('Noto Serif SC, serif', this)"><span>思源宋体</span><span>恨水虚席</span></div>
-                <div class="bp-font-item" onclick="window.bpSetFont('Ma Shan Zheng, cursive', this)"><span>马善政毛笔</span><span>恨水虚席</span></div>
-                <div class="bp-font-item" onclick="window.bpSetFont('ZCOOL XiaoWei, serif', this)"><span>站酷小薇体</span><span>恨水虚席</span></div>
-                <div class="bp-font-item" onclick="window.bpSetFont('Noto Sans SC, sans-serif', this)"><span>思源黑体</span><span>恨水虚席</span></div>
+                <div class="bp-section-title">1. 壁纸 (原文区)</div>
+                <div id="topPaletteContainer"></div>
+                <div class="color-picker-wrapper">
+                    <input type="color" class="color-picker-input" id="topColorPicker" value="#F7F5F0" onchange="window.bpSetTopCustomBg(this.value)">
+                    <span style="font-size:10px; color:#555;">自定义取色调色盘</span>
+                </div>
+                <div class="bp-chip-grid" style="grid-template-columns: repeat(3, 1fr); margin-top:8px;">
+                    <button class="bp-action-chip active" id="top-tex-none" onclick="window.bpSetTopTexture('none')">无纹理</button>
+                    <button class="bp-action-chip" id="top-tex-frosted" onclick="window.bpSetTopTexture('frosted')">细磨砂</button>
+                    <button class="bp-action-chip" id="top-tex-noise" onclick="window.bpSetTopTexture('noise')">胶片噪点</button>
+                </div>
+                <div class="slider-row">
+                    <span>纹理浓度</span>
+                    <input type="range" min="0" max="70" value="0" id="top-grain-slider" oninput="window.bpSetTopGrainOpacity(this.value)">
+                </div>
+            </div>
+            <div class="bp-drawer-section">
+                <div class="bp-section-title">2. 底图 (拼贴区)</div>
+                <div id="bottomPaletteContainer"></div>
+                <div class="color-picker-wrapper">
+                    <input type="color" class="color-picker-input" id="botColorPicker" value="#F7F5F0" onchange="window.bpSetBottomCustomBg(this.value)">
+                    <span style="font-size:10px; color:#555;">自定义取色调色盘</span>
+                </div>
+                <button class="bp-action-chip" style="width:100%; margin-top:6px;" onclick="window.bpSyncCollageSize()">使拼贴区与原文区等大</button>
+                <div class="bp-chip-grid" style="grid-template-columns: repeat(3, 1fr); margin-top:8px;">
+                    <button class="bp-action-chip active" id="bot-tex-none" onclick="window.bpSetBottomTexture('none')">无纹理</button>
+                    <button class="bp-action-chip" id="bot-tex-frosted" onclick="window.bpSetBottomTexture('frosted')">细磨砂</button>
+                    <button class="bp-action-chip" id="bot-tex-noise" onclick="window.bpSetBottomTexture('noise')">胶片噪点</button>
+                </div>
+                <div class="slider-row">
+                    <span>纹理浓度</span>
+                    <input type="range" min="0" max="70" value="0" id="bot-grain-slider" oninput="window.bpSetBottomGrainOpacity(this.value)">
+                </div>
+            </div>
+            <div class="bp-drawer-section">
+                <div class="bp-section-title">字体颜色 (统一)</div>
+                <div id="textColorPaletteContainer"></div>
+                <div class="color-picker-wrapper" style="margin-top:6px;">
+                    <input type="color" class="color-picker-input" id="textColorPicker" value="#1A1A1A" onchange="window.bpSetTextColor(this.value)">
+                    <span style="font-size:10px; color:#555;">自定义文字色</span>
+                </div>
+            </div>
+            <div class="bp-drawer-section">
+                <div class="bp-section-title">字体选择 (独立)</div>
+                <div style="font-size:10px; margin-bottom:4px; font-weight:bold;">上:原文区</div>
+                <div class="bp-font-item selected" onclick="window.bpSetZoneFont('top', 'Noto Serif SC, serif', this)"><span>思源宋体</span><span>恨水虚席</span></div>
+                <div class="bp-font-item" onclick="window.bpSetZoneFont('top', 'Ma Shan Zheng, cursive', this)"><span>马善政毛笔</span><span>恨水虚席</span></div>
+                <div class="slider-row" style="margin-bottom:10px;"><span>原文大小</span><input type="range" min="11" max="24" value="14" oninput="window.bpSetTopFontSize(this.value)"></div>
+                
+                <div style="font-size:10px; margin-bottom:4px; font-weight:bold;">下:拼贴区</div>
+                <div class="bp-font-item selected" onclick="window.bpSetZoneFont('bottom', 'Noto Serif SC, serif', this)"><span>思源宋体</span><span>恨水虚席</span></div>
+                <div class="bp-font-item" onclick="window.bpSetZoneFont('bottom', 'Ma Shan Zheng, cursive', this)"><span>马善政毛笔</span><span>恨水虚席</span></div>
+                <div class="slider-row"><span>拼贴字大小</span><input type="range" min="11" max="24" value="14" oninput="window.bpSetScrapFontSize(this.value)"></div>
             </div>
         </div>
+
         <div class="bp-drawer" id="bp-right-drawer">
+            <div class="bp-drawer-section">
+                <div class="bp-section-title">拖拽头像卡片</div>
+                <div class="setting-toggle-row">
+                    <span>显示卡片</span>
+                    <input type="checkbox" id="toggle-profile-cb" onchange="window.bpToggleProfileCard()" style="accent-color:#000;">
+                </div>
+                <div class="setting-toggle-row">
+                    <span>模式</span>
+                    <div style="display:flex; gap:4px;">
+                        <button class="bp-action-chip" id="btn-mode-single" onclick="window.bpSetUserMode('single')">单人</button>
+                        <button class="bp-action-chip active" id="btn-mode-cp" onclick="window.bpSetUserMode('cp')">双人</button>
+                    </div>
+                </div>
+                <div class="setting-field">
+                    <label>角色 1 昵称</label>
+                    <input type="text" class="setting-input" id="user1-name-input" value="USER" oninput="window.bpUpdateMeta()">
+                    <div class="avatar-upload-pair">
+                        <div class="avatar-preview-box"><img id="avatar1-img" src="data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='%23555'><circle cx='12' cy='8' r='4'/><path d='M4 20c0-4 4-6 8-6s8 2 8 6'/></svg>"></div>
+                        <div class="file-wrapper" style="flex:1;">
+                            <div class="bp-action-chip">换头像</div>
+                            <input type="file" accept="image/*" onchange="window.bpUploadAvatar(event, 1)">
+                        </div>
+                    </div>
+                </div>
+                <div class="setting-field" id="user2-group">
+                    <label>角色 2 昵称</label>
+                    <input type="text" class="setting-input" id="user2-name-input" value="CHAR" oninput="window.bpUpdateMeta()">
+                    <div class="avatar-upload-pair">
+                        <div class="avatar-preview-box"><img id="avatar2-img" src="data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='%23888'><circle cx='12' cy='8' r='4'/><path d='M4 20c0-4 4-6 8-6s8 2 8 6'/></svg>"></div>
+                        <div class="file-wrapper" style="flex:1;">
+                            <div class="bp-action-chip">换头像</div>
+                            <input type="file" accept="image/*" onchange="window.bpUploadAvatar(event, 2)">
+                        </div>
+                    </div>
+                </div>
+                <div class="setting-field">
+                    <label>卡片日期标注</label>
+                    <input type="text" class="setting-input" id="date-text-input" value="" oninput="window.bpUpdateMeta()">
+                </div>
+            </div>
+
             <div class="bp-drawer-section">
                 <div class="bp-section-title">一键打码</div>
                 <div class="bp-mask-row" onclick="window.bpToggleMask('user')"><span id="bp-sym-user">⊹</span><span>User</span></div>
@@ -180,37 +344,22 @@
                     <button class="bp-action-chip" id="bp-m-symbol" onclick="window.bpSetMaskStyle('symbol')">符号</button>
                 </div>
             </div>
-            <div class="bp-drawer-section">
-                <div class="bp-section-title">时间显示</div>
-                <div class="bp-chip-grid" style="grid-template-columns:1fr 1fr;">
-                    <button class="bp-action-chip active" id="bp-t-solar" onclick="window.bpSetTimeMode('solar')">公历</button>
-                    <button class="bp-action-chip" id="bp-t-lunar" onclick="window.bpSetTimeMode('lunar')">干支历</button>
-                </div>
-            </div>
+            
             <div class="bp-drawer-section" id="bp-author-box">
-                <div class="bp-section-title">名人风格提取</div>
+                <div class="bp-section-title">名人文风 (点击自动扣字排版)</div>
                 <div class="bp-author-grid" id="bpAuthorList"></div>
             </div>
         </div>
     `;
     document.body.appendChild(modal);
 
-    // 🌟 核心：手机端选区自动记忆雷达 (只要手指划过文字就死死记住)
-    let lastUserSelectedText = "";
-    document.addEventListener('selectionchange', () => {
-        const sel = window.getSelection();
-        if (sel && sel.toString().trim().length > 0) {
-            lastUserSelectedText = sel.toString().trim();
-        }
-    });
-
     const authors = [
-        { name: "张爱玲", pats: [["烫手的铁", "包上糖衣"], ["毫不设防", "吞下去"], ["成了", "烫手的铁"]] },
-        { name: "史铁生", pats: [["二十五年", "默认之上"], ["漫长", "的使用历史"], ["默认", "仍然成立"]] },
-        { name: "太宰治", pats: [["全然地", "吞下去"], ["甚至", "带着期待"], ["毫不设防", "张开嘴"]] },
-        { name: "木心", pats: [["教她用筷子", "系鞋带"], ["背唐诗", "到第三句"], ["水里", "不要闭眼睛"]] },
-        { name: "余华", pats: [["喉咙里", "烫手的铁"], ["腐蚀成了铁", "吞下去"], ["每一颗", "递过去"]] },
-        { name: "鲁迅", pats: [["喉咙里", "烫手的铁"], ["正确答案", "腐蚀成铁"], ["冷然", "递过去"]] }
+        { name: "张爱玲", pats: [["烫手", "糖衣"], ["毫不设防", "吞下去"]] },
+        { name: "史铁生", pats: [["漫长", "使用历史"], ["默认", "仍然成立"]] },
+        { name: "太宰治", pats: [["全然", "吞下去"], ["带着期待", "张嘴"]] },
+        { name: "木心", pats: [["教她", "系鞋带"], ["唐诗", "水里闭眼"]] },
+        { name: "余华", pats: [["喉咙", "烫手的铁"], ["每一颗", "递过去"]] },
+        { name: "鲁迅", pats: [["喉咙里", "烫手的铁"], ["答案", "腐蚀成铁"]] }
     ];
     let authorCounter = {};
     let maskUser = false, maskChar = false, maskStyle = 'blur';
@@ -222,10 +371,76 @@
         const b = document.createElement('div');
         b.className = 'bp-author-btn';
         b.innerText = a.name;
-        b.onclick = () => { bpGenerateByAuthor(a); document.getElementById('bp-right-drawer').classList.remove('open'); };
+        b.onclick = () => { window.bpGenerateByAuthor(a); document.getElementById('bp-right-drawer').classList.remove('open'); };
         authorListEl.appendChild(b);
     });
 
+    // 智能选区雷达
+    let lastUserSelectedText = "";
+    document.addEventListener('selectionchange', () => {
+        const sel = window.getSelection();
+        if (sel && sel.toString().trim().length > 0) lastUserSelectedText = sel.toString().trim();
+    });
+
+    const colorCategories = {
+        light: [{bg:'#F7F5F0'}, {bg:'#FFFFFF'}, {bg:'#F2F2F2'}, {bg:'#F0ECE1'}, {bg:'#EFE5E3'}],
+        vintage: [{bg:'#6B2D2B'}, {bg:'#334839'}, {bg:'#203A4C'}, {bg:'#D9CBB7'}, {bg:'#C99E5C'}],
+        dark: [{bg:'#111111'}, {bg:'#1C1E21'}, {bg:'#2B2B2B'}, {bg:'#0F1A24'}, {bg:'#241B18'}]
+    };
+    function initColors(cid, cb) {
+        const c = document.getElementById(cid);
+        ['light','vintage','dark'].forEach(k => {
+            const r = document.createElement('div');
+            r.className = 'color-palette-row';
+            colorCategories[k].forEach(cl => {
+                const b = document.createElement('button');
+                b.className = 'color-dot'; b.style.background = cl.bg; b.onclick = () => cb(cl.bg);
+                r.appendChild(b);
+            });
+            c.appendChild(r);
+        });
+    }
+    initColors('topPaletteContainer', window.bpSetTopCustomBg = function(c) {
+        document.documentElement.style.setProperty('--bp-top-bg', c);
+        document.documentElement.style.setProperty('--bp-scrap-bg', c);
+        const rgb = parseInt(c.replace('#',''),16), luma = 0.2126*((rgb>>16)&0xff) + 0.7152*((rgb>>8)&0xff) + 0.0722*(rgb&0xff);
+        document.documentElement.style.setProperty('--bp-top-cut-color', luma>140 ? 'rgba(0,0,0,0.06)' : 'rgba(255,255,255,0.15)');
+    });
+    initColors('bottomPaletteContainer', window.bpSetBottomCustomBg = function(c) {
+        document.documentElement.style.setProperty('--bp-bottom-bg', c);
+    });
+    
+    const txtCols = ['#1A1A1A', '#FFFFFF', '#666666', '#A0A0A0', '#6B2D2B', '#334839', '#203A4C', '#C99E5C', '#D9CBB7', '#EFE5E3'];
+    const tc = document.getElementById('textColorPaletteContainer');
+    const tr = document.createElement('div'); tr.className = 'color-palette-row';
+    txtCols.forEach(c => {
+        const b = document.createElement('button'); b.className = 'color-dot'; b.style.background = c;
+        b.onclick = () => window.bpSetTextColor(c); tr.appendChild(b);
+    });
+    tc.appendChild(tr);
+
+    window.bpSetTextColor = function(c) {
+        document.documentElement.style.setProperty('--bp-shared-text-color', c);
+    }
+    window.bpSetTopTexture = function(t) {
+        document.querySelectorAll('[id^="top-tex-"]').forEach(b => b.classList.remove('active'));
+        document.getElementById(`top-tex-${t}`).classList.add('active');
+        const l = document.getElementById('top-texture');
+        if(t==='none'){l.style.filter='none'; l.style.background='none';}
+        else if(t==='frosted'){l.style.filter='url(#tex-frosted-filter)'; l.style.background='#888';}
+        else if(t==='noise'){l.style.filter='url(#tex-noise-filter)'; l.style.background='#888';}
+    }
+    window.bpSetTopGrainOpacity = function(v) { document.documentElement.style.setProperty('--bp-top-grain-opacity', v/100); }
+    window.bpSetBottomTexture = function(t) {
+        document.querySelectorAll('[id^="bot-tex-"]').forEach(b => b.classList.remove('active'));
+        document.getElementById(`bot-tex-${t}`).classList.add('active');
+        const l = document.getElementById('bottom-texture');
+        if(t==='none'){l.style.filter='none'; l.style.background='none';}
+        else if(t==='frosted'){l.style.filter='url(#tex-frosted-filter)'; l.style.background='#888';}
+        else if(t==='noise'){l.style.filter='url(#tex-noise-filter)'; l.style.background='#888';}
+    }
+    window.bpSetBottomGrainOpacity = function(v) { document.documentElement.style.setProperty('--bp-bottom-grain-opacity', v/100); }
+    
     window.bpRenderText = function(text) {
         const flow = document.getElementById('bpTextFlow');
         const collage = document.getElementById('bp-collage-area');
@@ -233,10 +448,7 @@
         collage.querySelectorAll('.bp-scrap-word').forEach(e => e.remove());
         text.split('').forEach((char, idx) => {
             const s = document.createElement('span');
-            s.className = 'bp-char-node';
-            s.textContent = char;
-            s.dataset.char = char;
-            s.dataset.idx = idx;
+            s.className = 'bp-char-node'; s.textContent = char; s.dataset.char = char; s.dataset.idx = idx;
             s.onclick = () => {
                 if (s.classList.contains('is-cut')) {
                     s.classList.remove('is-cut');
@@ -249,15 +461,13 @@
             };
             flow.appendChild(s);
         });
-        bpUpdateMeta();
+        window.bpUpdateMeta();
     };
 
     function bpSpawnScrap(char, idx) {
         const collage = document.getElementById('bp-collage-area');
         const sc = document.createElement('div');
-        sc.className = 'bp-scrap-word';
-        sc.textContent = char;
-        sc.dataset.idx = idx;
+        sc.className = 'bp-scrap-word'; sc.textContent = char; sc.dataset.idx = idx;
         sc.style.left = (Math.random() * 160 + 30) + 'px';
         sc.style.top = (Math.random() * 60 + 20) + 'px';
         bpEnableDrag(sc);
@@ -272,25 +482,18 @@
     function bpEnableDrag(el) {
         let isD = false, sx, sy, ox, oy;
         const start = (e) => {
-            isD = true;
-            const p = e.touches ? e.touches[0] : e;
+            isD = true; const p = e.touches ? e.touches[0] : e;
             sx = p.clientX; sy = p.clientY;
             ox = parseFloat(el.style.left)||0; oy = parseFloat(el.style.top)||0;
             el.style.zIndex = 1000;
         };
         const move = (e) => {
-            if (!isD) return;
-            const p = e.touches ? e.touches[0] : e;
-            el.style.left = (ox + p.clientX - sx) + 'px';
-            el.style.top = (oy + p.clientY - sy) + 'px';
+            if (!isD) return; const p = e.touches ? e.touches[0] : e;
+            el.style.left = (ox + p.clientX - sx) + 'px'; el.style.top = (oy + p.clientY - sy) + 'px';
         };
         const end = () => { isD = false; el.style.zIndex = 10; };
-        el.addEventListener('mousedown', start);
-        window.addEventListener('mousemove', move);
-        window.addEventListener('mouseup', end);
-        el.addEventListener('touchstart', start, {passive:true});
-        window.addEventListener('touchmove', move, {passive:true});
-        window.addEventListener('touchend', end);
+        el.addEventListener('mousedown', start); window.addEventListener('mousemove', move); window.addEventListener('mouseup', end);
+        el.addEventListener('touchstart', start, {passive:true}); window.addEventListener('touchmove', move, {passive:true}); window.addEventListener('touchend', end);
     }
 
     window.bpArrange = function(lines) {
@@ -298,30 +501,22 @@
         if (!scraps.length) return;
         const rect = document.getElementById('bp-collage-area').getBoundingClientRect();
         let sumX = 0, sumY = 0;
-        scraps.forEach(s => {
-            sumX += parseFloat(s.style.left)||0;
-            sumY += parseFloat(s.style.top)||0;
-        });
-        const cX = sumX / scraps.length + 14;
-        const cY = sumY / scraps.length + 16;
+        scraps.forEach(s => { sumX += parseFloat(s.style.left)||0; sumY += parseFloat(s.style.top)||0; });
+        const cX = sumX / scraps.length + 14; const cY = sumY / scraps.length + 16;
         const actLines = Math.min(lines, scraps.length);
         const perLine = Math.ceil(scraps.length / actLines);
-        const totalW = perLine * 28 + (perLine - 1) * 8;
-        const totalH = actLines * 32 + (actLines - 1) * 10;
+        const totalW = perLine * 28 + (perLine - 1) * 8; const totalH = actLines * 32 + (actLines - 1) * 10;
         let originX = Math.max(10, Math.min(rect.width - totalW - 10, cX - totalW / 2));
         let originY = Math.max(10, Math.min(rect.height - totalH - 25, cY - totalH / 2));
         scraps.forEach((s, i) => {
-            const row = Math.floor(i / perLine);
-            const col = i % perLine;
-            s.style.transition = 'all 0.3s cubic-bezier(0.25, 1, 0.5, 1)';
-            s.style.transform = 'rotate(0deg)';
-            s.style.left = (originX + col * 36) + 'px';
-            s.style.top = (originY + row * 42) + 'px';
+            const row = Math.floor(i / perLine); const col = i % perLine;
+            s.style.transition = 'all 0.3s cubic-bezier(0.25, 1, 0.5, 1)'; s.style.transform = 'rotate(0deg)';
+            s.style.left = (originX + col * 36) + 'px'; s.style.top = (originY + row * 42) + 'px';
             setTimeout(() => s.style.transition = '', 300);
         });
     };
 
-    function bpGenerateByAuthor(a) {
+    window.bpGenerateByAuthor = function(a) {
         window.bpResetCuts();
         const raw = Array.from(document.querySelectorAll('.bp-char-node')).map(n => n.dataset.char).join('');
         const pats = a.pats;
@@ -329,9 +524,7 @@
         let phrase = pats[idx];
         let found = [];
         for (let word of phrase) {
-            for (let ch of word) {
-                if (raw.includes(ch)) found.push(ch);
-            }
+            for (let ch of word) { if (raw.includes(ch)) found.push(ch); }
         }
         found.slice(0, 8).forEach(c => {
             const node = Array.from(document.querySelectorAll('.bp-char-node')).find(n => n.dataset.char === c && !n.classList.contains('is-cut'));
@@ -345,11 +538,11 @@
         document.querySelectorAll('.bp-scrap-word').forEach(n => n.remove());
     };
 
-    window.bpSetFont = function(font, el) {
-        document.querySelectorAll('.bp-font-item').forEach(i => i.classList.remove('selected'));
+    window.bpSetZoneFont = function(zone, font, el) {
+        document.querySelectorAll(`.bp-drawer .bp-font-item`).forEach(i => i.classList.remove('selected'));
         el.classList.add('selected');
-        document.documentElement.style.setProperty('--bp-top-font-family', font);
-        document.documentElement.style.setProperty('--bp-scrap-font-family', font);
+        if(zone==='top') document.documentElement.style.setProperty('--bp-top-font-family', font);
+        else document.documentElement.style.setProperty('--bp-scrap-font-family', font);
     };
 
     window.bpToggleMask = function(t) {
@@ -377,40 +570,82 @@
         });
     }
 
-    function bpUpdateMeta() {
-        const now = new Date();
-        const tSpan = document.getElementById('bp-time-span');
-        if (timeMode === 'solar') {
-            tSpan.innerText = `${now.getFullYear()}.${now.getMonth()+1}.${now.getDate()}`;
-        } else {
-            const tg = ["甲","乙","丙","丁","戊","己","庚","辛","壬","癸"];
-            const dz = ["子","丑","寅","卯","辰","巳","午","未","申","酉","戌","亥"];
-            const y = now.getFullYear();
-            tSpan.innerText = `${tg[(y-4)%10]}${dz[(y-4)%12]}年 仲冬月`;
-        }
-    }
-
-    window.bpSetTimeMode = function(m) {
-        timeMode = m;
-        document.getElementById('bp-t-solar').classList.toggle('active', m === 'solar');
-        document.getElementById('bp-t-lunar').classList.toggle('active', m === 'lunar');
-        bpUpdateMeta();
+    window.bpSetUserMode = function(m) {
+        currentUserMode = m;
+        document.getElementById('btn-mode-single').classList.toggle('active', m === 'single');
+        document.getElementById('btn-mode-cp').classList.toggle('active', m === 'cp');
+        document.getElementById('user2-group').style.display = m === 'cp' ? 'block' : 'none';
+        document.getElementById('card-avatar-2').style.display = m === 'cp' ? 'block' : 'none';
+        document.getElementById('card-name-divider').style.display = m === 'cp' ? 'inline' : 'none';
+        document.getElementById('card-name-2').style.display = m === 'cp' ? 'inline' : 'none';
     };
+
+    window.bpUploadAvatar = function(e, uNum) {
+        const file = e.target.files[0];
+        if (!file) return;
+        const reader = new FileReader();
+        reader.onload = (ev) => {
+            const src = ev.target.result;
+            document.getElementById(`avatar${uNum}-img`).src = src;
+            document.getElementById(`card-avatar-${uNum}`).src = src;
+        };
+        reader.readAsDataURL(file);
+    };
+
+    window.bpToggleProfileCard = function() {
+        const show = document.getElementById('toggle-profile-cb').checked;
+        document.getElementById('bp-floating-profile-card').style.display = show ? 'flex' : 'none';
+    };
+
+    window.bpUpdateMeta = function() {
+        document.getElementById('card-name-1').innerText = document.getElementById('user1-name-input').value.trim();
+        document.getElementById('card-name-2').innerText = document.getElementById('user2-name-input').value.trim();
+        document.getElementById('card-date').innerText = document.getElementById('date-text-input').value.trim();
+        document.getElementById('bar-avatar-1').src = document.getElementById('avatar1-img').src;
+        document.getElementById('bar-avatar-2').src = document.getElementById('avatar2-img').src;
+    };
+
+    // 拖拽卡片
+    const pc = document.getElementById('bp-floating-profile-card');
+    let pcIsD = false, pSx, pSy, pOx, pOy;
+    const pcStart = (e) => {
+        pcIsD = true; const p = e.touches ? e.touches[0] : e;
+        pSx = p.clientX; pSy = p.clientY;
+        pOx = pc.offsetLeft; pOy = pc.offsetTop;
+        pc.style.transform = 'none'; pc.style.zIndex = 1500;
+    };
+    const pcMove = (e) => {
+        if (!pcIsD) return; const p = e.touches ? e.touches[0] : e;
+        pc.style.left = (pOx + p.clientX - pSx) + 'px'; pc.style.top = (pOy + p.clientY - pSy) + 'px';
+    };
+    const pcEnd = () => { pcIsD = false; pc.style.zIndex = 1200; };
+    pc.addEventListener('mousedown', pcStart); window.addEventListener('mousemove', pcMove); window.addEventListener('mouseup', pcEnd);
+    pc.addEventListener('touchstart', pcStart, {passive:true}); window.addEventListener('touchmove', pcMove, {passive:true}); window.addEventListener('touchend', pcEnd);
+
 
     document.getElementById('bp-btn-drawer').onclick = () => {
         document.getElementById('bp-right-drawer').classList.remove('open');
         document.getElementById('bp-left-drawer').classList.toggle('open');
+        document.getElementById('common-mask').classList.add('visible');
     };
     document.getElementById('bp-btn-settings').onclick = () => {
         document.getElementById('bp-left-drawer').classList.remove('open');
         document.getElementById('bp-right-drawer').classList.toggle('open');
+        document.getElementById('common-mask').classList.add('visible');
     };
     document.getElementById('bp-btn-author').onclick = () => {
         document.getElementById('bp-left-drawer').classList.remove('open');
         document.getElementById('bp-right-drawer').classList.add('open');
         document.getElementById('bp-author-box').scrollIntoView({behavior:'smooth'});
+        document.getElementById('common-mask').classList.add('visible');
     };
     document.getElementById('bp-btn-close').onclick = () => document.getElementById('bp-modal-container').style.display = 'none';
+
+    document.getElementById('common-mask').onclick = () => {
+        document.getElementById('bp-left-drawer').classList.remove('open');
+        document.getElementById('bp-right-drawer').classList.remove('open');
+        document.getElementById('common-mask').classList.remove('visible');
+    };
 
     document.getElementById('bp-layout-v').onclick = function() {
         this.classList.add('active'); document.getElementById('bp-layout-h').classList.remove('active');
@@ -421,10 +656,56 @@
         document.getElementById('bp-poster-canvas').classList.add('layout-horizontal');
     };
 
+    window.bpSyncCollageSize = function() {
+        const c = document.getElementById('bp-collage-area');
+        const s = document.getElementById('bp-source-area');
+        if (document.getElementById('bp-poster-canvas').classList.contains('layout-horizontal')) {
+            c.style.height = s.offsetHeight + 'px'; c.style.width = s.offsetWidth + 'px';
+        } else {
+            c.style.width = '100%'; c.style.height = s.offsetHeight + 'px';
+        }
+    };
+
+    const resizer = document.getElementById('bp-collage-resizer');
+    let rIsD = false, rSx, rSy, rSw, rSh;
+    const rStart = (e) => {
+        rIsD = true; const p = e.touches ? e.touches[0] : e;
+        rSx = p.clientX; rSy = p.clientY;
+        const c = document.getElementById('bp-collage-area');
+        rSw = c.offsetWidth; rSh = c.offsetHeight; e.stopPropagation();
+    };
+    const rMove = (e) => {
+        if (!rIsD) return; const p = e.touches ? e.touches[0] : e;
+        const c = document.getElementById('bp-collage-area');
+        if (document.getElementById('bp-poster-canvas').classList.contains('layout-horizontal')) {
+            c.style.width = Math.max(120, rSw + (p.clientX - rSx)) + 'px';
+            c.style.height = document.getElementById('bp-source-area').offsetHeight + 'px';
+        } else {
+            c.style.height = Math.max(120, rSh + (p.clientY - rSy)) + 'px';
+        }
+    };
+    const rEnd = () => { rIsD = false; };
+    resizer.addEventListener('mousedown', rStart); window.addEventListener('mousemove', rMove); window.addEventListener('mouseup', rEnd);
+    resizer.addEventListener('touchstart', rStart, {passive:true}); window.addEventListener('touchmove', rMove, {passive:true}); window.addEventListener('touchend', rEnd);
+
+    window.bpSetTopFontSize = function(val) {
+        document.documentElement.style.setProperty('--bp-top-font-size', val + 'px');
+        setTimeout(() => {
+            if (document.getElementById('bp-poster-canvas').classList.contains('layout-horizontal')) {
+                document.getElementById('bp-collage-area').style.height = document.getElementById('bp-source-area').offsetHeight + 'px';
+            }
+        }, 30);
+    }
+    window.bpSetScrapFontSize = function(val) { document.documentElement.style.setProperty('--bp-scrap-font-size', val + 'px'); }
+
     document.getElementById('bp-btn-save').onclick = () => {
         document.getElementById('bp-left-drawer').classList.remove('open');
         document.getElementById('bp-right-drawer').classList.remove('open');
+        document.getElementById('common-mask').classList.remove('visible');
+        document.getElementById('bp-collage-resizer').style.display = 'none';
+        
         html2canvas(document.getElementById('bp-poster-canvas'), { scale: 4, useCORS: true, backgroundColor: null }).then(c => {
+            document.getElementById('bp-collage-resizer').style.display = 'flex';
             const a = document.createElement('a');
             a.download = `Poem_HD_${Date.now()}.png`;
             a.href = c.toDataURL('image/png', 1.0);
@@ -432,21 +713,15 @@
         });
     };
 
-    // 🌟 打开工坊：严格先用【记忆选区】，没有才兜底整条消息
     window.openBlackoutPoetry = function () {
         let targetText = "";
-
-        // 1. 先查当前手机手指是不是刚划选了文本
         const currentSel = window.getSelection() ? window.getSelection().toString().trim() : "";
         if (currentSel) {
             targetText = currentSel;
         } else if (lastUserSelectedText) {
-            // 2. 命中记忆选区（手指划过松开后的文本）！
             targetText = lastUserSelectedText;
-            lastUserSelectedText = ""; // 用完即清，防止下次污染
+            lastUserSelectedText = "";
         }
-
-        // 3. 只有当用户确实没有划选任何字，才去拿最后一条 AI 消息
         if (!targetText && window.SillyTavern) {
             const ctx = SillyTavern.getContext();
             const chat = ctx.chat || [];
@@ -457,28 +732,21 @@
                 }
             }
         }
-
-        if (!targetText) {
-            targetText = "这里空空如也，请先用手指划选一段话，或者与角色对话后再开启。";
-        }
-
+        if (!targetText) targetText = "空空如也，请划选一段话，或者与角色对话后再开启。";
         const clean = $('<div>').html(targetText).text().trim();
         document.getElementById('bp-modal-container').style.display = 'flex';
         window.bpRenderText(clean);
+        // 初始化时让卡片默认不显示，直到勾选
+        document.getElementById('bp-floating-profile-card').style.display = 'none';
     };
 
-    // 挂载进魔法棒抽屉
+    // 核心挂载
     jQuery(async () => {
         try {
             const settingsHtml = await $.get('/scripts/extensions/third-party/st-blackout-poetry/settings.html');
             $('#extensions_settings').append(settingsHtml);
-
-            $(document).on('click', '#bp_open_studio_btn', () => {
-                window.openBlackoutPoetry();
-            });
-            console.log("[剪报拼贴诗] 精准选区版就绪！");
-        } catch (err) {
-            console.warn("[剪报拼贴诗] 挂载重试...", err);
-        }
+            $(document).on('click', '#bp_open_studio_btn', () => { window.openBlackoutPoetry(); });
+            console.log("[剪报拼贴诗] 已强制护航挂载就绪！");
+        } catch (err) { console.warn("[剪报拼贴诗] 挂载重试...", err); }
     });
 })();
