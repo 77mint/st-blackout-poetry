@@ -1,666 +1,594 @@
-// SillyTavern 剪报拼贴诗扩展 - 修复崩溃终极版
+// SillyTavern 剪报拼贴诗 - 防弹稳定版
 (function () {
-    // 1. 动态注入 html2canvas 与字体源
+    'use strict';
+
     if (!window.html2canvas) {
         const s = document.createElement('script');
         s.src = 'https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js';
         document.head.appendChild(s);
     }
-    const fontLink = document.createElement('link');
-    fontLink.rel = 'stylesheet';
-    fontLink.href = 'https://fonts.googleapis.com/css2?family=Ma+Shan+Zheng&family=Noto+Sans+SC:wght@300;400;500&family=Noto+Serif+SC:wght@300;400;600&family=ZCOOL+XiaoWei&display=swap';
-    document.head.appendChild(fontLink);
+    const fl = document.createElement('link');
+    fl.rel = 'stylesheet';
+    fl.href = 'https://fonts.googleapis.com/css2?family=Ma+Shan+Zheng&family=Noto+Sans+SC:wght@300;400;600&family=Noto+Serif+SC:wght@300;400;600&family=ZCOOL+XiaoWei&display=swap';
+    document.head.appendChild(fl);
 
-    // 2. 核心样式 (绝对层级控制)
-    const styleEl = document.createElement('style');
-    styleEl.innerHTML = `
-        :root {
-            --bp-top-bg: #F7F5F0;
-            --bp-top-cut-color: rgba(0,0,0,0.06);
-            --bp-top-font-size: 14.5px;
-            --bp-top-grain-opacity: 0;
-            --bp-top-font-family: 'Noto Serif SC', serif;
-            --bp-bottom-bg: #F7F5F0;
-            --bp-scrap-bg: var(--bp-top-bg);
-            --bp-scrap-font-size: 14.5px;
-            --bp-bottom-grain-opacity: 0;
-            --bp-scrap-font-family: 'Noto Serif SC', serif;
-            --bp-shared-text-color: #1A1A1A;
-        }
-
-        #bp-modal-container {
-            position: fixed !important; top: 0 !important; left: 0 !important; 
-            width: 100vw !important; height: 100vh !important;
-            background: rgba(20,20,20,0.95) !important;
-            z-index: 100000 !important;
+    const css = `
+        #bpModal {
+            position: fixed; inset: 0; width: 100vw; height: 100vh;
+            background: rgba(20,20,20,0.95); z-index: 100000;
             display: none; justify-content: center; align-items: flex-start;
-            overflow-y: auto !important; padding: 70px 10px 50px 10px; 
-            font-family: -apple-system, sans-serif !important;
-            box-sizing: border-box;
+            overflow-y: auto; padding: 70px 10px 50px; box-sizing: border-box;
+            font-family: -apple-system, sans-serif;
         }
+        #bpBox { position: relative; width: 100%; max-width: 430px; margin: 0 auto; }
+        #bpTopBar { position: absolute; top: -50px; left: 0; right: 0; display: flex; justify-content: space-between; }
+        .bpBarL, .bpBarR { display: flex; gap: 6px; align-items: center; }
+        .bpBtn {
+            width: 36px; height: 36px; display: flex; justify-content: center; align-items: center;
+            background: #FFF; border: 1px solid #CCC; border-radius: 4px; cursor: pointer;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+        }
+        .bpBtn svg { width: 18px; height: 18px; stroke: #1C1C1C; stroke-width: 1.6; fill: none; }
+        .bpLayout { display: flex; background: #FFF; border: 1px solid #CCC; border-radius: 4px; padding: 2px; box-shadow: 0 4px 12px rgba(0,0,0,0.2); }
+        .bpLayoutBtn { background: none; border: none; color: #666; font-size: 11px; padding: 6px 10px; border-radius: 2px; cursor: pointer; }
+        .bpLayoutBtn.on { background: #1C1C1C; color: #FFF; }
 
-        #bp-viewport-box { position: relative; display: flex; flex-direction: column; align-items: center; width: 100%; max-width: 440px; margin: 0 auto; }
-        
-        #bp-top-left-bar { position: absolute; top: -52px; left: 0; display: flex; align-items: center; gap: 6px; z-index: 100015; }
-        #bp-top-right-bar { position: absolute; top: -52px; right: 0; display: flex; align-items: center; gap: 6px; z-index: 100015; }
-        
-        .bp-icon-btn {
-            width: 36px; height: 36px; display: flex; justify-content: center; align-items: center; cursor: pointer;
-            background: #FFFFFF !important; border: 1px solid #CCC !important; border-radius: 4px;
-            box-shadow: 0 4px 12px rgba(0,0,0,0.2) !important;
+        #bpCanvas {
+            width: 100%; max-width: 420px; background: #F7F5F0; display: flex; flex-direction: column;
+            box-shadow: 0 25px 60px rgba(0,0,0,0.6); position: relative; touch-action: none;
         }
-        .bp-icon-btn svg { width: 18px; height: 18px; stroke: #1C1C1C; stroke-width: 1.6; fill: none; }
-        
-        .bp-layout-toggle { display: flex; background: #FFFFFF !important; border: 1px solid #CCC !important; border-radius: 4px; padding: 2px; box-shadow: 0 4px 12px rgba(0,0,0,0.2) !important; }
-        .bp-layout-btn { background: transparent; border: none; color: #666; font-size: 11px; padding: 6px 10px; border-radius: 2px; cursor: pointer; }
-        .bp-layout-btn.active { background: #1C1C1C !important; color: #FFF !important; font-weight: 500; }
-        
-        #bp-poster-canvas {
-            box-shadow: 0 25px 60px rgba(0,0,0,0.6) !important; position: relative; display: flex; flex-direction: column;
-            border: 1px solid rgba(0,0,0,0.1); touch-action: none; width: 100%; max-width: 420px; background: #FFF !important;
-            margin: 0 auto;
+        #bpCanvas.horiz { flex-direction: row; max-width: 680px; }
+        #bpTop {
+            background: var(--bpTopBg, #F7F5F0); padding: 34px 24px 24px; flex-shrink: 0;
+            font-family: var(--bpTopFont, 'Noto Serif SC', serif); position: relative;
         }
-        #bp-poster-canvas.layout-horizontal { flex-direction: row !important; max-width: 680px; width: 100%; }
-        
-        #bp-source-area {
-            background-color: var(--bp-top-bg) !important; background-size: cover; background-position: center;
-            padding: 34px 24px 24px 24px; position: relative; flex-shrink: 0; height: auto;
-            font-family: var(--bp-top-font-family);
-        }
-        #bp-poster-canvas.layout-horizontal #bp-source-area { width: 50%; }
-        
-        .bp-text-flow {
-            color: var(--bp-shared-text-color) !important; font-size: var(--bp-top-font-size); line-height: 2.2;
-            letter-spacing: 0.06em; text-align: justify; word-break: break-all;
-        }
-        
-        .bp-char-node { cursor: pointer; position: relative; display: inline-block; color: var(--bp-shared-text-color) !important; }
-        .bp-char-node.is-cut { color: transparent !important; }
-        .bp-char-node.is-cut::after {
-            content: ""; position: absolute; top: 2px; bottom: 2px; left: 0; right: 0;
-            background-color: var(--bp-top-cut-color); border-radius: 1px;
-        }
-        .bp-char-node.mask-blur { filter: blur(3.5px); opacity: 0.6; }
-        .bp-char-node.mask-black { background: #1A1A1A; color: #1A1A1A !important; border-radius: 1px; }
-        .bp-char-node.mask-symbol { position: relative; color: transparent !important; }
-        .bp-char-node.mask-symbol::after { content: "×"; position: absolute; left: 0; top: 0; width: 100%; height: 100%; color: var(--bp-shared-text-color); display: flex; align-items: center; justify-content: center; font-size: 13px; }
+        #bpCanvas.horiz #bpTop { width: 50%; }
+        #bpFlow { color: var(--bpTextColor, #1A1A1A); font-size: var(--bpTopSize, 14.5px); line-height: 2.2; letter-spacing: 0.06em; text-align: justify; word-break: break-all; }
+        .bpChar { cursor: pointer; position: relative; display: inline-block; color: var(--bpTextColor, #1A1A1A); }
+        .bpChar.cut { color: transparent !important; }
+        .bpChar.cut::after { content: ""; position: absolute; top: 2px; bottom: 2px; left: 0; right: 0; background: var(--bpCutColor, rgba(0,0,0,0.06)); border-radius: 1px; }
+        .bpChar.mBlur { filter: blur(3.5px); opacity: 0.6; }
+        .bpChar.mBlack { background: #1A1A1A; color: #1A1A1A !important; }
+        .bpChar.mSym { color: transparent !important; }
+        .bpChar.mSym::after { content: "×"; position: absolute; inset: 0; color: var(--bpTextColor, #1A1A1A); display: flex; align-items: center; justify-content: center; }
 
-        #bp-collage-area {
-            position: relative; background-color: var(--bp-bottom-bg) !important; background-size: cover; background-position: center;
-            border-top: 1px solid rgba(0, 0, 0, 0.04); flex-shrink: 0; min-height: 180px; min-width: 180px;
-            overflow: hidden; font-family: var(--bp-scrap-font-family); padding-bottom: 35px;
+        #bpBottom {
+            background: var(--bpBotBg, #F7F5F0); position: relative; flex-shrink: 0;
+            min-height: 180px; min-width: 180px; overflow: hidden;
+            border-top: 1px solid rgba(0,0,0,0.05); padding-bottom: 30px;
+            font-family: var(--bpBotFont, 'Noto Serif SC', serif);
         }
-        #bp-poster-canvas.layout-horizontal #bp-collage-area { border-top: none; border-left: 1px solid rgba(0, 0, 0, 0.04); width: 50%; }
-        
-        .bp-scrap-word {
-            position: absolute; background-color: var(--bp-scrap-bg) !important; color: var(--bp-shared-text-color) !important;
-            padding: 3px 6px; font-size: var(--bp-scrap-font-size); line-height: 1; border-radius: 1px;
-            cursor: grab; box-shadow: 1px 2px 5px rgba(0,0,0,0.15) !important; font-family: inherit; touch-action: none;
-            z-index: 10; display: inline-flex; justify-content: center; align-items: center; width: 26px; height: 30px;
+        #bpCanvas.horiz #bpBottom { width: 50%; border-top: none; border-left: 1px solid rgba(0,0,0,0.05); }
+        .bpScrap {
+            position: absolute; background: var(--bpScrapBg, #F7F5F0); color: var(--bpTextColor, #1A1A1A);
+            width: 26px; height: 30px; display: inline-flex; justify-content: center; align-items: center;
+            font-size: var(--bpBotSize, 14.5px); border-radius: 1px; cursor: grab; touch-action: none;
+            box-shadow: 1px 2px 5px rgba(0,0,0,0.15); z-index: 10; font-family: inherit;
         }
-        .bp-scrap-word:active { cursor: grabbing; box-shadow: 2px 6px 14px rgba(0,0,0,0.25) !important; z-index: 100; }
-        
-        #bp-collage-resizer { position: absolute; z-index: 1000; display: flex; align-items: center; justify-content: center; }
-        #bp-poster-canvas:not(.layout-horizontal) #bp-collage-resizer { bottom: 0; left: 0; width: 100%; height: 14px; cursor: ns-resize; }
-        #bp-poster-canvas:not(.layout-horizontal) #bp-collage-resizer::after { content: ""; width: 32px; height: 3px; background: rgba(0,0,0,0.2); border-radius: 2px; }
-        #bp-poster-canvas.layout-horizontal #bp-collage-resizer { right: 0; top: 0; width: 14px; height: 100%; cursor: ew-resize; }
-        #bp-poster-canvas.layout-horizontal #bp-collage-resizer::after { content: ""; width: 3px; height: 32px; background: rgba(0,0,0,0.2); border-radius: 2px; }
+        #bpResizer { position: absolute; bottom: 0; left: 0; width: 100%; height: 14px; cursor: ns-resize; z-index: 1000; display: flex; align-items: center; justify-content: center; }
+        #bpResizer::after { content: ""; width: 32px; height: 3px; background: rgba(0,0,0,0.2); border-radius: 2px; }
+        #bpCanvas.horiz #bpResizer { right: 0; top: 0; left: auto; width: 14px; height: 100%; cursor: ew-resize; }
+        #bpCanvas.horiz #bpResizer::after { width: 3px; height: 32px; }
 
-        .texture-layer { position: absolute; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; mix-blend-mode: overlay; z-index: 800; }
-        #top-texture { opacity: var(--bp-top-grain-opacity); }
-        #bottom-texture { opacity: var(--bp-bottom-grain-opacity); }
+        #bpMeta { position: absolute; bottom: 10px; left: 0; width: 100%; display: flex; justify-content: center; gap: 12px; font-size: 8.5px; letter-spacing: 0.1em; color: var(--bpTextColor, #1A1A1A); opacity: 0.45; pointer-events: none; }
 
-        #bp-bottom-meta {
-            position: absolute; bottom: 12px; left: 0; width: 100%; display: flex;
-            justify-content: center; align-items: center; gap: 12px; font-size: 8.5px;
-            letter-spacing: 0.1em; color: var(--bp-shared-text-color) !important; opacity: 0.45 !important; pointer-events: none;
+        .bpDrawer {
+            position: fixed; top: 0; width: 275px; height: 100vh; background: #FAFAFA;
+            box-shadow: 0 0 35px rgba(0,0,0,0.5); z-index: 100010;
+            padding: 25px 16px; overflow-y: auto; font-size: 11.5px; color: #222;
+            transition: transform 0.3s; display: flex; flex-direction: column;
         }
+        #bpLeft { left: 0; transform: translateX(-300px); }
+        #bpLeft.on { transform: translateX(0); }
+        #bpRight { right: 0; transform: translateX(300px); }
+        #bpRight.on { transform: translateX(0); }
 
-        /* 修复丢失的遮罩层 */
-        #bp-common-mask {
-            position: fixed !important; top: 0 !important; left: 0 !important; 
-            width: 100vw !important; height: 100vh !important;
-            background: rgba(0,0,0,0.4) !important; z-index: 100005 !important;
-            display: none; opacity: 0; transition: opacity 0.25s;
-        }
-        #bp-common-mask.visible { display: block; opacity: 1; }
-
-        .bp-drawer {
-            position: fixed !important; top: 0 !important; width: 280px !important; height: 100vh !important; 
-            background: #FAFAFA !important; box-shadow: 0 0 35px rgba(0,0,0,0.5) !important; z-index: 100010 !important;
-            display: flex; flex-direction: column; padding: 25px 16px; overflow-y: auto; font-size: 11.5px;
-            color: #222 !important; transition: all 0.3s;
-        }
-        #bp-left-drawer { left: -300px; }
-        #bp-left-drawer.open { left: 0; }
-        #bp-right-drawer { right: -300px; }
-        #bp-right-drawer.open { right: 0; }
-        
-        .bp-drawer-section { margin-bottom: 16px; border-bottom: 1px solid #DDD; padding-bottom: 12px; }
-        .bp-section-title { font-size: 10px; color: #555; margin-bottom: 6px; font-weight: 600; text-transform: uppercase; }
-        .bp-chip-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 4px; margin-bottom: 6px; }
-        .bp-action-chip { background: #EEE !important; border: 1px solid #CCC !important; color: #111 !important; padding: 6px 0; text-align: center; border-radius: 2px; cursor: pointer; font-size: 10px; }
-        .bp-action-chip.active { background: #1C1C1C !important; color: #FFF !important; }
-        .bp-mask-row { display: flex; align-items: center; gap: 8px; cursor: pointer; font-size: 12px; margin-bottom: 6px; color: #111; }
-        .bp-font-item { display: flex; justify-content: space-between; background: #FFF !important; border: 1px solid #CCC !important; padding: 5px 8px; cursor: pointer; margin-bottom: 4px; color: #111; }
-        .bp-font-item.selected { border-color: #000 !important; background: #E5E5E5 !important; font-weight: bold; }
-        .bp-author-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 5px; max-height: 240px; overflow-y: auto; }
-        .bp-author-btn { background: #EEE !important; border: 1px solid #CCC !important; padding: 8px; font-size: 11px; text-align: center; border-radius: 2px; cursor: pointer; color:#111 !important; }
-        
-        .color-group-label { font-size: 9px; color: #999; margin: 4px 0 2px 0; }
-        .color-palette-row { display: grid; grid-template-columns: repeat(6, 1fr); gap: 4px; margin-bottom: 5px; }
-        .color-dot { height: 20px; border-radius: 2px; border: 1px solid rgba(0, 0, 0, 0.1); cursor: pointer; transition: transform 0.15s; }
-        .color-dot:hover { transform: scale(1.1); }
-        .color-picker-wrapper { display: flex; align-items: center; gap: 6px; margin: 4px 0 8px 0; background: #EEE; padding: 4px 8px; border-radius: 2px; border: 1px solid #CCC; }
-        .color-picker-input { width: 22px; height: 22px; border: none; padding: 0; cursor: pointer; background: none; }
-        
-        .setting-field { margin-bottom: 12px; }
-        .setting-field label { display: block; font-size: 9.5px; color: #777; margin-bottom: 4px; }
-        .setting-input { width: 100%; background: #FFF; border: 1px solid #CCC; padding: 6px 8px; font-size: 11px; border-radius: 2px; outline: none; color: #111; }
-        .setting-toggle-row { display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px; color: #111; font-weight: 500;}
-        .file-wrapper { position: relative; overflow: hidden; display: block; margin-top: 4px; }
-        .file-wrapper input[type="file"] { position: absolute; left: 0; top: 0; opacity: 0; cursor: pointer; width: 100%; height: 100%; }
-        .slider-row { display: flex; align-items: center; justify-content: space-between; margin-top: 6px; }
-        .slider-row span { color: #555; font-size: 9.5px; }
-        .slider-row input[type="range"] { width: 150px; accent-color: #000; }
+        .bpSec { margin-bottom: 15px; border-bottom: 1px solid #DDD; padding-bottom: 12px; }
+        .bpSecT { font-size: 10px; color: #555; margin-bottom: 6px; font-weight: 600; }
+        .bpGrid { display: grid; grid-template-columns: repeat(3,1fr); gap: 4px; margin-bottom: 6px; }
+        .bpChip { background: #EEE; border: 1px solid #CCC; color: #111; padding: 6px 0; text-align: center; border-radius: 2px; cursor: pointer; font-size: 10px; }
+        .bpChip.on { background: #1C1C1C; color: #FFF; }
+        .bpMaskRow { display: flex; align-items: center; gap: 8px; cursor: pointer; font-size: 12px; margin-bottom: 6px; }
+        .bpFont { display: flex; justify-content: space-between; background: #FFF; border: 1px solid #CCC; padding: 5px 8px; cursor: pointer; margin-bottom: 4px; }
+        .bpFont.on { border-color: #000; background: #E5E5E5; font-weight: bold; }
+        .bpAuthors { display: grid; grid-template-columns: 1fr 1fr; gap: 5px; }
+        .bpAuthor { background: #EEE; border: 1px solid #CCC; padding: 8px; font-size: 11px; text-align: center; border-radius: 2px; cursor: pointer; }
+        .bpColRow { display: grid; grid-template-columns: repeat(6,1fr); gap: 4px; margin-bottom: 5px; }
+        .bpCol { height: 20px; border-radius: 2px; border: 1px solid rgba(0,0,0,0.1); cursor: pointer; }
+        .bpPick { display: flex; align-items: center; gap: 6px; background: #EEE; padding: 4px 8px; border-radius: 2px; border: 1px solid #CCC; margin: 4px 0; }
+        .bpPick input { width: 22px; height: 22px; border: none; background: none; cursor: pointer; }
+        .bpSlide { display: flex; align-items: center; justify-content: space-between; margin-top: 6px; }
+        .bpSlide span { color: #555; font-size: 9.5px; }
+        .bpSlide input { width: 145px; accent-color: #000; }
     `;
-    document.head.appendChild(styleEl);
+    const st = document.createElement('style');
+    st.textContent = css;
+    document.head.appendChild(st);
 
-    // 3. 注入主 DOM (已修复缺失的 bp-common-mask)
-    const modal = document.createElement('div');
-    modal.id = 'bp-modal-container';
-    modal.innerHTML = `
-        <svg style="display:none;">
-            <defs>
-                <filter id="tex-frosted-filter"><feTurbulence type="fractalNoise" baseFrequency="0.95" numOctaves="4" stitchTiles="stitch"/></filter>
-                <filter id="tex-noise-filter"><feTurbulence type="fractalNoise" baseFrequency="0.55" numOctaves="2" stitchTiles="stitch"/></filter>
-                <filter id="tex-paper-filter"><feTurbulence type="turbulence" baseFrequency="0.04" numOctaves="5" result="noise"/><feDiffuseLighting in="noise" lighting-color="#fff" surfaceScale="2"><feDistantLight azimuth="45" elevation="60"/></feDiffuseLighting></filter>
-                <filter id="tex-fabric-filter"><feTurbulence type="fractalNoise" baseFrequency="0.3 0.05" numOctaves="3" stitchTiles="stitch"/></filter>
-                <filter id="tex-scratch-filter"><feTurbulence type="turbulence" baseFrequency="0.01 0.4" numOctaves="2" stitchTiles="stitch"/></filter>
-            </defs>
-        </svg>
-
-        <!-- 关键修复：遮罩层 -->
-        <div id="bp-common-mask"></div>
-
-        <div id="bp-viewport-box">
-            <div id="bp-top-left-bar">
-                <div class="bp-icon-btn" id="bp-btn-drawer"><svg viewBox="0 0 24 24"><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="18" x2="21" y2="18"/></svg></div>
-                <div class="bp-icon-btn" id="bp-btn-author"><svg viewBox="0 0 24 24"><path d="M9 18h6M10 21h4M12 2a7 7 0 0 0-4 12.7V17h8v-2.3A7 7 0 0 0 12 2z"/></svg></div>
-                <div class="bp-layout-toggle">
-                    <button class="bp-layout-btn active" id="bp-layout-v">上下</button>
-                    <button class="bp-layout-btn" id="bp-layout-h">左右</button>
+    const box = document.createElement('div');
+    box.id = 'bpModal';
+    box.innerHTML = `
+        <svg style="display:none"><defs>
+            <filter id="bpFrost"><feTurbulence type="fractalNoise" baseFrequency="0.9" numOctaves="4" stitchTiles="stitch"/></filter>
+            <filter id="bpNoise"><feTurbulence type="fractalNoise" baseFrequency="0.5" numOctaves="2" stitchTiles="stitch"/></filter>
+        </defs></svg>
+        <div id="bpBox">
+            <div id="bpTopBar">
+                <div class="bpBarL">
+                    <div class="bpBtn" id="bpMenu"><svg viewBox="0 0 24 24"><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="18" x2="21" y2="18"/></svg></div>
+                    <div class="bpBtn" id="bpAuthor"><svg viewBox="0 0 24 24"><path d="M9 18h6M10 21h4M12 2a7 7 0 0 0-4 12.7V17h8v-2.3A7 7 0 0 0 12 2z"/></svg></div>
+                    <div class="bpLayout"><button class="bpLayoutBtn on" id="bpLV">上下</button><button class="bpLayoutBtn" id="bpLH">左右</button></div>
+                </div>
+                <div class="bpBarR">
+                    <div class="bpBtn" id="bpSet"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg></div>
+                    <div class="bpBtn" id="bpSave"><svg viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg></div>
+                    <div class="bpBtn" id="bpClose"><svg viewBox="0 0 24 24"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></div>
                 </div>
             </div>
-            
-            <div id="bp-top-right-bar">
-                <!-- 设置与保存并列 -->
-                <div class="bp-icon-btn" id="bp-btn-settings"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg></div>
-                <div class="bp-icon-btn" id="bp-btn-save"><svg viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg></div>
-                <div class="bp-icon-btn" id="bp-btn-close"><svg viewBox="0 0 24 24"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></div>
-            </div>
-            
-            <div id="bp-poster-canvas">
-                <div id="bp-source-area"><div class="bp-text-flow" id="bpTextFlow"></div><div class="texture-layer" id="top-texture"></div></div>
-                <div id="bp-collage-area">
-                    <div class="texture-layer" id="bottom-texture"></div>
-                    <div id="bp-bottom-meta"><span id="bp-time-span"></span><span id="bp-wm-span"></span></div>
-                    <div id="bp-collage-resizer"></div>
-                </div>
+            <div id="bpCanvas">
+                <div id="bpTop"><div id="bpFlow"></div></div>
+                <div id="bpBottom"><div id="bpMeta"><span id="bpTime"></span><span id="bpWm"></span></div><div id="bpResizer"></div></div>
             </div>
         </div>
-        
-        <div class="bp-drawer" id="bp-left-drawer">
-            <div class="bp-drawer-section">
-                <div class="bp-section-title">原地排齐</div>
-                <div class="bp-chip-grid">
-                    <button class="bp-action-chip" onclick="window.bpArrange(1)">排 1 行</button>
-                    <button class="bp-action-chip" onclick="window.bpArrange(2)">排 2 行</button>
-                    <button class="bp-action-chip" style="font-weight:bold;" onclick="window.bpArrange(3)">排 3 行</button>
+        <div class="bpDrawer" id="bpLeft">
+            <div class="bpSec">
+                <div class="bpSecT">原地排齐</div>
+                <div class="bpGrid">
+                    <button class="bpChip" data-act="arr1">排1行</button>
+                    <button class="bpChip" data-act="arr2">排2行</button>
+                    <button class="bpChip" data-act="arr3" style="font-weight:bold">排3行</button>
                 </div>
-                <button class="bp-action-chip" style="width:100%; margin-top:4px;" onclick="window.bpResetCuts()">复原全部</button>
+                <button class="bpChip" data-act="reset" style="width:100%">复原全部</button>
             </div>
-            <div class="bp-drawer-section">
-                <div class="bp-section-title">1. 壁纸 (原文区)</div>
-                <div id="topPaletteContainer"></div>
-                <div class="color-picker-wrapper">
-                    <input type="color" class="color-picker-input" id="topColorPicker" value="#F7F5F0" onchange="window.bpSetTopCustomBg(this.value)">
-                    <span style="font-size:10px; color:#555;">自选颜色</span>
-                </div>
-                <div class="bp-chip-grid" style="grid-template-columns: repeat(3, 1fr); margin-top:8px;">
-                    <button class="bp-action-chip active" id="top-tex-none" onclick="window.bpSetTopTexture('none')">无纹理</button>
-                    <button class="bp-action-chip" id="top-tex-frosted" onclick="window.bpSetTopTexture('frosted')">细磨砂</button>
-                    <button class="bp-action-chip" id="top-tex-noise" onclick="window.bpSetTopTexture('noise')">胶片噪点</button>
+            <div class="bpSec">
+                <div class="bpSecT">壁纸(原文区)</div>
+                <div id="bpTopPal"></div>
+                <div class="bpPick"><input type="color" value="#F7F5F0" data-set="top"><span style="font-size:10px">自选颜色</span></div>
+                <div class="bpGrid" style="margin-top:8px">
+                    <button class="bpChip on" data-tex="top-none">无纹理</button>
+                    <button class="bpChip" data-tex="top-frost">细磨砂</button>
+                    <button class="bpChip" data-tex="top-noise">胶片噪点</button>
                 </div>
             </div>
-            <div class="bp-drawer-section">
-                <div class="bp-section-title">2. 底图 (拼贴区)</div>
-                <div id="bottomPaletteContainer"></div>
-                <div class="color-picker-wrapper">
-                    <input type="color" class="color-picker-input" id="botColorPicker" value="#F7F5F0" onchange="window.bpSetBottomCustomBg(this.value)">
-                    <span style="font-size:10px; color:#555;">自选颜色</span>
-                </div>
-                <button class="bp-action-chip" style="width:100%; margin-top:6px;" onclick="window.bpSyncCollageSize()">使拼贴区与原文区等大</button>
-                <div class="bp-chip-grid" style="grid-template-columns: repeat(3, 1fr); margin-top:8px;">
-                    <button class="bp-action-chip active" id="bot-tex-none" onclick="window.bpSetBottomTexture('none')">无纹理</button>
-                    <button class="bp-action-chip" id="bot-tex-frosted" onclick="window.bpSetBottomTexture('frosted')">细磨砂</button>
-                    <button class="bp-action-chip" id="bot-tex-noise" onclick="window.bpSetBottomTexture('noise')">胶片噪点</button>
+            <div class="bpSec">
+                <div class="bpSecT">底图(拼贴区)</div>
+                <div id="bpBotPal"></div>
+                <div class="bpPick"><input type="color" value="#F7F5F0" data-set="bot"><span style="font-size:10px">自选颜色</span></div>
+                <button class="bpChip" data-act="sync" style="width:100%;margin-top:6px">使拼贴区与原文区等大</button>
+                <div class="bpGrid" style="margin-top:8px">
+                    <button class="bpChip on" data-tex="bot-none">无纹理</button>
+                    <button class="bpChip" data-tex="bot-frost">细磨砂</button>
+                    <button class="bpChip" data-tex="bot-noise">胶片噪点</button>
                 </div>
             </div>
-            <div class="bp-drawer-section">
-                <div class="bp-section-title">字体颜色</div>
-                <div id="textColorPaletteContainer"></div>
-                <div class="color-picker-wrapper" style="margin-top:6px;">
-                    <input type="color" class="color-picker-input" id="textColorPicker" value="#1A1A1A" onchange="window.bpSetTextColor(this.value)">
-                    <span style="font-size:10px; color:#555;">自选颜色</span>
-                </div>
+            <div class="bpSec">
+                <div class="bpSecT">字体颜色</div>
+                <div id="bpTxtPal"></div>
+                <div class="bpPick"><input type="color" value="#1A1A1A" data-set="txt"><span style="font-size:10px">自选颜色</span></div>
             </div>
-            <div class="bp-drawer-section">
-                <div class="bp-section-title">字体设置</div>
-                <div style="font-size:10px; margin-bottom:4px; font-weight:bold;">上: 原文区</div>
-                <div class="bp-font-item selected" onclick="window.bpSetZoneFont('top', 'Noto Serif SC, serif', this)"><span>思源宋体</span><span>恨水虚席</span></div>
-                <div class="bp-font-item" onclick="window.bpSetZoneFont('top', 'Ma Shan Zheng, cursive', this)"><span>马善政毛笔</span><span>恨水虚席</span></div>
-                <div class="slider-row" style="margin-bottom:10px;"><span>原文大小</span><input type="range" min="11" max="24" value="14" oninput="window.bpSetTopFontSize(this.value)"></div>
-                
-                <div style="font-size:10px; margin-bottom:4px; font-weight:bold;">下: 拼贴区</div>
-                <div class="bp-font-item selected" onclick="window.bpSetZoneFont('bottom', 'Noto Serif SC, serif', this)"><span>思源宋体</span><span>恨水虚席</span></div>
-                <div class="bp-font-item" onclick="window.bpSetZoneFont('bottom', 'Ma Shan Zheng, cursive', this)"><span>马善政毛笔</span><span>恨水虚席</span></div>
-                <div class="slider-row"><span>拼贴大小</span><input type="range" min="11" max="24" value="14" oninput="window.bpSetScrapFontSize(this.value)"></div>
+            <div class="bpSec">
+                <div class="bpSecT">字体设置</div>
+                <div style="font-size:10px;margin-bottom:4px;font-weight:bold">上:原文区</div>
+                <div class="bpFont on" data-font="top" data-val="Noto Serif SC,serif"><span>思源宋体</span><span>恨水虚席</span></div>
+                <div class="bpFont" data-font="top" data-val="Ma Shan Zheng,cursive"><span>马善政毛笔</span><span>恨水虚席</span></div>
+                <div class="bpSlide" style="margin-bottom:10px"><span>原文大小</span><input type="range" min="11" max="24" value="14" data-size="top"></div>
+                <div style="font-size:10px;margin-bottom:4px;font-weight:bold">下:拼贴区</div>
+                <div class="bpFont on" data-font="bot" data-val="Noto Serif SC,serif"><span>思源宋体</span><span>恨水虚席</span></div>
+                <div class="bpFont" data-font="bot" data-val="Ma Shan Zheng,cursive"><span>马善政毛笔</span><span>恨水虚席</span></div>
+                <div class="bpSlide"><span>拼贴大小</span><input type="range" min="11" max="24" value="14" data-size="bot"></div>
             </div>
         </div>
-
-        <div class="bp-drawer" id="bp-right-drawer">
-            <div class="bp-drawer-section">
-                <div class="bp-section-title">一键打码</div>
-                <div class="bp-mask-row" onclick="window.bpToggleMask('user')"><span id="bp-sym-user">⊹</span><span>User</span></div>
-                <div class="bp-mask-row" onclick="window.bpToggleMask('char')"><span id="bp-sym-char">⊹</span><span>Char</span></div>
-                <div class="bp-chip-grid" style="margin-top:8px;">
-                    <button class="bp-action-chip active" id="bp-m-blur" onclick="window.bpSetMaskStyle('blur')">模糊</button>
-                    <button class="bp-action-chip" id="bp-m-black" onclick="window.bpSetMaskStyle('black')">涂黑</button>
-                    <button class="bp-action-chip" id="bp-m-symbol" onclick="window.bpSetMaskStyle('symbol')">符号</button>
+        <div class="bpDrawer" id="bpRight">
+            <div class="bpSec">
+                <div class="bpSecT">一键打码</div>
+                <div class="bpMaskRow" data-mask="user"><span id="bpSymU">⊹</span><span>User</span></div>
+                <div class="bpMaskRow" data-mask="char"><span id="bpSymC">⊹</span><span>Char</span></div>
+                <div class="bpGrid" style="margin-top:8px">
+                    <button class="bpChip on" data-mstyle="blur">模糊</button>
+                    <button class="bpChip" data-mstyle="black">涂黑</button>
+                    <button class="bpChip" data-mstyle="sym">符号</button>
                 </div>
             </div>
-            <div class="bp-drawer-section">
-                <div class="bp-section-title">时间与水印</div>
-                <div class="setting-toggle-row"><span>显示时间</span><input type="checkbox" id="toggle-time-cb" checked onchange="window.bpUpdateMeta()" style="accent-color:#000;"></div>
-                <div class="bp-chip-grid" style="grid-template-columns:1fr 1fr; margin-bottom:12px;">
-                    <button class="bp-action-chip active" id="bp-t-solar" onclick="window.bpSetTimeMode('solar')">公历</button>
-                    <button class="bp-action-chip" id="bp-t-lunar" onclick="window.bpSetTimeMode('lunar')">干支历</button>
+            <div class="bpSec">
+                <div class="bpSecT">时间与水印</div>
+                <div style="display:flex;justify-content:space-between;margin-bottom:8px"><span>显示时间</span><input type="checkbox" id="bpTimeCb" checked style="accent-color:#000"></div>
+                <div class="bpGrid" style="grid-template-columns:1fr 1fr;margin-bottom:10px">
+                    <button class="bpChip on" data-time="solar">公历</button>
+                    <button class="bpChip" data-time="lunar">干支历</button>
                 </div>
-                <div class="setting-toggle-row"><span>显示水印</span><input type="checkbox" id="toggle-watermark-cb" checked onchange="window.bpUpdateMeta()" style="accent-color:#000;"></div>
-                <input type="text" class="setting-input" id="watermark-text-input" value="SillyTavern" oninput="window.bpUpdateMeta()">
+                <div style="display:flex;justify-content:space-between;margin-bottom:8px"><span>显示水印</span><input type="checkbox" id="bpWmCb" checked style="accent-color:#000"></div>
+                <input type="text" id="bpWmInput" value="SillyTavern" style="width:100%;padding:6px;border:1px solid #CCC;border-radius:2px;font-size:11px">
             </div>
-            <div class="bp-drawer-section" id="bp-author-box">
-                <div class="bp-section-title">名人风格自动生成</div>
-                <div class="bp-author-grid" id="bpAuthorList"></div>
+            <div class="bpSec">
+                <div class="bpSecT">名人风格</div>
+                <div class="bpAuthors" id="bpAuthorList"></div>
             </div>
         </div>
     `;
-    document.body.appendChild(modal);
+    document.body.appendChild(box);
 
-    // 智能选区雷达
-    let lastUserSelectedText = "";
+    // ===== 安全获取工具 =====
+    const $id = (i) => document.getElementById(i);
+    const rootStyle = document.documentElement.style;
+
+    let lastSel = "";
     document.addEventListener('selectionchange', () => {
-        const sel = window.getSelection();
-        if (sel && sel.toString().trim().length > 0) lastUserSelectedText = sel.toString().trim();
+        const s = window.getSelection();
+        if (s && s.toString().trim()) lastSel = s.toString().trim();
     });
+
+    let maskU = false, maskC = false, maskStyle = 'blur', timeMode = 'solar';
 
     const authors = [
-        { name: "张爱玲", pats: [["烫手的铁", "包上糖衣"], ["毫不设防", "吞下去"]] },
-        { name: "史铁生", pats: [["漫长", "使用历史"], ["默认", "仍然成立"]] },
-        { name: "太宰治", pats: [["全然", "吞下去"], ["带着期待", "张开嘴"]] },
-        { name: "木心", pats: [["教她", "系鞋带"], ["唐诗", "不要闭眼睛"]] },
-        { name: "余华", pats: [["喉咙", "烫手的铁"], ["每一颗", "递过去"]] },
-        { name: "鲁迅", pats: [["喉咙里", "烫手的铁"], ["答案", "腐蚀成铁"]] }
+        { n: "张爱玲", p: [["烫手的铁","糖衣"],["毫不设防","吞下去"]] },
+        { n: "史铁生", p: [["漫长","使用历史"],["默认","仍然成立"]] },
+        { n: "太宰治", p: [["全然","吞下去"],["带着期待","张开嘴"]] },
+        { n: "木心", p: [["教她","系鞋带"],["唐诗","不要闭眼睛"]] },
+        { n: "余华", p: [["喉咙","烫手的铁"],["每一颗","递过去"]] },
+        { n: "鲁迅", p: [["喉咙里","烫手的铁"],["答案","腐蚀成铁"]] }
     ];
-    let authorCounter = {};
-    let maskUser = false, maskChar = false, maskStyle = 'blur';
-    let timeMode = 'solar';
+    const authorCnt = {};
 
-    const authorListEl = document.getElementById('bpAuthorList');
-    authors.forEach(a => {
-        authorCounter[a.name] = 0;
-        const b = document.createElement('div');
-        b.className = 'bp-author-btn';
-        b.innerText = a.name;
-        b.onclick = () => { window.bpGenerateByAuthor(a); document.getElementById('bp-right-drawer').classList.remove('open'); document.getElementById('bp-common-mask').classList.remove('visible'); };
-        authorListEl.appendChild(b);
-    });
-
-    const colorCategories = {
-        light: [{bg:'#F7F5F0'}, {bg:'#FFFFFF'}, {bg:'#F2F2F2'}, {bg:'#F0ECE1'}],
-        vintage: [{bg:'#6B2D2B'}, {bg:'#334839'}, {bg:'#203A4C'}, {bg:'#D9CBB7'}],
-        dark: [{bg:'#111111'}, {bg:'#1C1E21'}, {bg:'#2B2B2B'}, {bg:'#0F1A24'}]
-    };
-    function initColors(cid, cb) {
-        const c = document.getElementById(cid);
-        ['light','vintage','dark'].forEach(k => {
-            const r = document.createElement('div'); r.className = 'color-palette-row';
-            colorCategories[k].forEach(cl => {
-                const b = document.createElement('button');
-                b.className = 'color-dot'; b.style.background = cl.bg; b.onclick = () => cb(cl.bg);
-                r.appendChild(b);
-            });
-            c.appendChild(r);
-        });
-    }
-    initColors('topPaletteContainer', window.bpSetTopCustomBg = function(c) {
-        document.documentElement.style.setProperty('--bp-top-bg', c);
-        document.documentElement.style.setProperty('--bp-scrap-bg', c);
-        const rgb = parseInt(c.replace('#',''),16), luma = 0.2126*((rgb>>16)&0xff) + 0.7152*((rgb>>8)&0xff) + 0.0722*(rgb&0xff);
-        document.documentElement.style.setProperty('--bp-top-cut-color', luma>140 ? 'rgba(0,0,0,0.06)' : 'rgba(255,255,255,0.15)');
-    });
-    initColors('bottomPaletteContainer', window.bpSetBottomCustomBg = function(c) {
-        document.documentElement.style.setProperty('--bp-bottom-bg', c);
-    });
-    
-    const txtCols = ['#1A1A1A', '#FFFFFF', '#666666', '#6B2D2B', '#334839', '#203A4C', '#D9CBB7', '#EFE5E3'];
-    const tc = document.getElementById('textColorPaletteContainer');
-    const tr = document.createElement('div'); tr.className = 'color-palette-row';
-    txtCols.forEach(c => {
-        const b = document.createElement('button'); b.className = 'color-dot'; b.style.background = c;
-        b.onclick = () => window.bpSetTextColor(c); tr.appendChild(b);
-    });
-    tc.appendChild(tr);
-
-    window.bpSetTextColor = function(c) { document.documentElement.style.setProperty('--bp-shared-text-color', c); }
-    window.bpSetTopTexture = function(t) {
-        document.querySelectorAll('[id^="top-tex-"]').forEach(b => b.classList.remove('active'));
-        document.getElementById(`top-tex-${t}`).classList.add('active');
-        const l = document.getElementById('top-texture');
-        if(t==='none'){l.style.filter='none'; l.style.background='none';}
-        else if(t==='frosted'){l.style.filter='url(#tex-frosted-filter)'; l.style.background='#888';}
-        else if(t==='noise'){l.style.filter='url(#tex-noise-filter)'; l.style.background='#888';}
-    }
-    window.bpSetTopGrainOpacity = function(v) { document.documentElement.style.setProperty('--bp-top-grain-opacity', v/100); }
-    window.bpSetBottomTexture = function(t) {
-        document.querySelectorAll('[id^="bot-tex-"]').forEach(b => b.classList.remove('active'));
-        document.getElementById(`bot-tex-${t}`).classList.add('active');
-        const l = document.getElementById('bottom-texture');
-        if(t==='none'){l.style.filter='none'; l.style.background='none';}
-        else if(t==='frosted'){l.style.filter='url(#tex-frosted-filter)'; l.style.background='#888';}
-        else if(t==='noise'){l.style.filter='url(#tex-noise-filter)'; l.style.background='#888';}
-    }
-    window.bpSetBottomGrainOpacity = function(v) { document.documentElement.style.setProperty('--bp-bottom-grain-opacity', v/100); }
-    
-    window.bpRenderText = function(text) {
-        const flow = document.getElementById('bpTextFlow');
-        const collage = document.getElementById('bp-collage-area');
+    // ===== 渲染文字 =====
+    function renderText(text) {
+        const flow = $id('bpFlow'), bot = $id('bpBottom');
+        if (!flow || !bot) return;
         flow.innerHTML = '';
-        collage.querySelectorAll('.bp-scrap-word').forEach(e => e.remove());
-        text.split('').forEach((char, idx) => {
-            const s = document.createElement('span');
-            s.className = 'bp-char-node'; s.textContent = char; s.dataset.char = char; s.dataset.idx = idx;
-            s.onclick = () => {
-                if (s.classList.contains('is-cut')) {
-                    s.classList.remove('is-cut');
-                    const sc = collage.querySelector(`.bp-scrap-word[data-idx="${idx}"]`);
+        bot.querySelectorAll('.bpScrap').forEach(e => e.remove());
+        text.split('').forEach((ch, i) => {
+            const sp = document.createElement('span');
+            sp.className = 'bpChar';
+            sp.textContent = ch;
+            sp.dataset.ch = ch;
+            sp.dataset.i = i;
+            sp.onclick = () => {
+                if (sp.classList.contains('cut')) {
+                    sp.classList.remove('cut');
+                    const sc = bot.querySelector('.bpScrap[data-i="' + i + '"]');
                     if (sc) sc.remove();
                 } else {
-                    s.classList.add('is-cut');
-                    bpSpawnScrap(char, idx);
+                    sp.classList.add('cut');
+                    spawnScrap(ch, i);
                 }
             };
-            flow.appendChild(s);
+            flow.appendChild(sp);
         });
-        window.bpUpdateMeta();
-    };
-
-    function bpSpawnScrap(char, idx) {
-        const collage = document.getElementById('bp-collage-area');
-        const sc = document.createElement('div');
-        sc.className = 'bp-scrap-word'; sc.textContent = char; sc.dataset.idx = idx;
-        sc.style.left = (Math.random() * 160 + 30) + 'px';
-        sc.style.top = (Math.random() * 60 + 20) + 'px';
-        bpEnableDrag(sc);
-        sc.ondblclick = () => {
-            const target = document.querySelector(`.bp-char-node[data-idx="${idx}"]`);
-            if (target) target.classList.remove('is-cut');
-            sc.remove();
-        };
-        collage.appendChild(sc);
+        updateMeta();
     }
 
-    function bpEnableDrag(el) {
-        let isD = false, sx, sy, ox, oy;
+    function spawnScrap(ch, i) {
+        const bot = $id('bpBottom');
+        if (!bot) return;
+        const sc = document.createElement('div');
+        sc.className = 'bpScrap';
+        sc.textContent = ch;
+        sc.dataset.i = i;
+        sc.style.left = (Math.random() * 150 + 30) + 'px';
+        sc.style.top = (Math.random() * 60 + 20) + 'px';
+        enableDrag(sc);
+        sc.ondblclick = () => {
+            const t = document.querySelector('.bpChar[data-i="' + i + '"]');
+            if (t) t.classList.remove('cut');
+            sc.remove();
+        };
+        bot.appendChild(sc);
+    }
+
+    function enableDrag(el) {
+        let d = false, sx, sy, ox, oy;
         const start = (e) => {
-            isD = true; const p = e.touches ? e.touches[0] : e;
+            d = true;
+            const p = e.touches ? e.touches[0] : e;
             sx = p.clientX; sy = p.clientY;
-            ox = parseFloat(el.style.left)||0; oy = parseFloat(el.style.top)||0;
+            ox = parseFloat(el.style.left) || 0; oy = parseFloat(el.style.top) || 0;
             el.style.zIndex = 1000;
         };
         const move = (e) => {
-            if (!isD) return; const p = e.touches ? e.touches[0] : e;
-            el.style.left = (ox + p.clientX - sx) + 'px'; el.style.top = (oy + p.clientY - sy) + 'px';
+            if (!d) return;
+            const p = e.touches ? e.touches[0] : e;
+            el.style.left = (ox + p.clientX - sx) + 'px';
+            el.style.top = (oy + p.clientY - sy) + 'px';
         };
-        const end = () => { isD = false; el.style.zIndex = 10; };
-        el.addEventListener('mousedown', start); window.addEventListener('mousemove', move); window.addEventListener('mouseup', end);
-        el.addEventListener('touchstart', start, {passive:true}); window.addEventListener('touchmove', move, {passive:true}); window.addEventListener('touchend', end);
+        const end = () => { d = false; el.style.zIndex = 10; };
+        el.addEventListener('mousedown', start);
+        window.addEventListener('mousemove', move);
+        window.addEventListener('mouseup', end);
+        el.addEventListener('touchstart', start, { passive: true });
+        window.addEventListener('touchmove', move, { passive: true });
+        window.addEventListener('touchend', end);
     }
 
-    window.bpArrange = function(lines) {
-        const scraps = Array.from(document.querySelectorAll('#bp-collage-area .bp-scrap-word'));
+    function arrange(lines) {
+        const bot = $id('bpBottom');
+        if (!bot) return;
+        const scraps = Array.from(bot.querySelectorAll('.bpScrap'));
         if (!scraps.length) return;
-        const rect = document.getElementById('bp-collage-area').getBoundingClientRect();
-        let sumX = 0, sumY = 0;
-        scraps.forEach(s => { sumX += parseFloat(s.style.left)||0; sumY += parseFloat(s.style.top)||0; });
-        const cX = sumX / scraps.length + 14; const cY = sumY / scraps.length + 16;
-        const actLines = Math.min(lines, scraps.length);
-        const perLine = Math.ceil(scraps.length / actLines);
-        const totalW = perLine * 28 + (perLine - 1) * 8; const totalH = actLines * 32 + (actLines - 1) * 10;
-        let originX = Math.max(10, Math.min(rect.width - totalW - 10, cX - totalW / 2));
-        let originY = Math.max(10, Math.min(rect.height - totalH - 25, cY - totalH / 2));
+        const rect = bot.getBoundingClientRect();
+        let sx = 0, sy = 0;
+        scraps.forEach(s => { sx += parseFloat(s.style.left) || 0; sy += parseFloat(s.style.top) || 0; });
+        const cx = sx / scraps.length + 14, cy = sy / scraps.length + 16;
+        const L = Math.min(lines, scraps.length);
+        const per = Math.ceil(scraps.length / L);
+        const w = per * 28 + (per - 1) * 8, h = L * 32 + (L - 1) * 10;
+        let ox = Math.max(10, Math.min(rect.width - w - 10, cx - w / 2));
+        let oy = Math.max(10, Math.min(rect.height - h - 25, cy - h / 2));
         scraps.forEach((s, i) => {
-            const row = Math.floor(i / perLine); const col = i % perLine;
-            s.style.transition = 'all 0.3s cubic-bezier(0.25, 1, 0.5, 1)'; s.style.transform = 'rotate(0deg)';
-            s.style.left = (originX + col * 36) + 'px'; s.style.top = (originY + row * 42) + 'px';
+            const r = Math.floor(i / per), c = i % per;
+            s.style.transition = 'all 0.3s ease';
+            s.style.transform = 'rotate(0deg)';
+            s.style.left = (ox + c * 36) + 'px';
+            s.style.top = (oy + r * 42) + 'px';
             setTimeout(() => s.style.transition = '', 300);
         });
-    };
+    }
 
-    window.bpGenerateByAuthor = function(a) {
-        window.bpResetCuts();
-        const raw = Array.from(document.querySelectorAll('.bp-char-node')).map(n => n.dataset.char).join('');
-        const pats = a.pats;
-        const idx = (authorCounter[a.name]++) % pats.length;
-        let phrase = pats[idx];
+    function resetCuts() {
+        document.querySelectorAll('.bpChar.cut').forEach(n => n.classList.remove('cut'));
+        document.querySelectorAll('.bpScrap').forEach(n => n.remove());
+    }
+
+    function genAuthor(a) {
+        resetCuts();
+        const raw = Array.from(document.querySelectorAll('.bpChar')).map(n => n.dataset.ch).join('');
+        authorCnt[a.n] = (authorCnt[a.n] || 0);
+        const phrase = a.p[authorCnt[a.n] % a.p.length];
+        authorCnt[a.n]++;
         let found = [];
-        for (let word of phrase) {
-            for (let ch of word) { if (raw.includes(ch)) found.push(ch); }
-        }
+        phrase.forEach(w => { for (const c of w) if (raw.includes(c)) found.push(c); });
         found.slice(0, 8).forEach(c => {
-            const node = Array.from(document.querySelectorAll('.bp-char-node')).find(n => n.dataset.char === c && !n.classList.contains('is-cut'));
-            if (node) { node.classList.add('is-cut'); bpSpawnScrap(c, node.dataset.idx); }
+            const node = Array.from(document.querySelectorAll('.bpChar')).find(n => n.dataset.ch === c && !n.classList.contains('cut'));
+            if (node) { node.classList.add('cut'); spawnScrap(c, node.dataset.i); }
         });
-        setTimeout(() => window.bpArrange(2), 60);
+        setTimeout(() => arrange(2), 60);
     }
 
-    window.bpResetCuts = function() {
-        document.querySelectorAll('.bp-char-node.is-cut').forEach(n => n.classList.remove('is-cut'));
-        document.querySelectorAll('.bp-scrap-word').forEach(n => n.remove());
-    };
-
-    window.bpSetZoneFont = function(zone, font, el) {
-        document.querySelectorAll(`.bp-drawer .bp-font-item`).forEach(i => i.classList.remove('selected'));
-        el.classList.add('selected');
-        if(zone==='top') document.documentElement.style.setProperty('--bp-top-font-family', font);
-        else document.documentElement.style.setProperty('--bp-scrap-font-family', font);
-    };
-
-    window.bpToggleMask = function(t) {
-        if (t === 'user') { maskUser = !maskUser; document.getElementById('bp-sym-user').innerText = maskUser ? '✦' : '⊹'; }
-        if (t === 'char') { maskChar = !maskChar; document.getElementById('bp-sym-char').innerText = maskChar ? '✦' : '⊹'; }
-        bpApplyMask();
-    };
-
-    window.bpSetMaskStyle = function(st) {
-        maskStyle = st;
-        document.querySelectorAll('#bp-right-drawer button').forEach(b => b.classList.remove('active'));
-        document.getElementById(`bp-m-${st}`).classList.add('active');
-        bpApplyMask();
-    };
-
-    function bpApplyMask() {
-        const raw = Array.from(document.querySelectorAll('.bp-char-node')).map(n => n.dataset.char).join('');
-        const charWords = raw.match(/莫诺马赫|林越安|高杉|桂|柯梵恩|褚瓷/g) || ["柯梵恩", "褚瓷"];
-        const userWords = ["我", "你", "他", "她"];
-        document.querySelectorAll('.bp-char-node').forEach(n => n.classList.remove('mask-blur', 'mask-black', 'mask-symbol'));
-        document.querySelectorAll('.bp-char-node').forEach((node, i) => {
-            const ch = node.dataset.char;
-            if (maskChar && charWords.some(w => raw.substr(i, w.length) === w)) node.classList.add(`mask-${maskStyle}`);
-            if (maskUser && userWords.includes(ch)) node.classList.add(`mask-${maskStyle}`);
+    function applyMask() {
+        const raw = Array.from(document.querySelectorAll('.bpChar')).map(n => n.dataset.ch).join('');
+        const cw = raw.match(/莫诺马赫|林越安|高杉|桂|柯梵恩|褚瓷/g) || ["柯梵恩", "褚瓷"];
+        const uw = ["我", "你", "他", "她"];
+        const cls = 'm' + (maskStyle === 'blur' ? 'Blur' : maskStyle === 'black' ? 'Black' : 'Sym');
+        const nodes = Array.from(document.querySelectorAll('.bpChar'));
+        nodes.forEach(n => n.classList.remove('mBlur', 'mBlack', 'mSym'));
+        nodes.forEach((n, i) => {
+            const ch = n.dataset.ch;
+            if (maskC && cw.some(w => raw.substr(i, w.length) === w)) n.classList.add(cls);
+            if (maskU && uw.includes(ch)) n.classList.add(cls);
         });
     }
 
-    window.bpUpdateMeta = function() {
-        const now = new Date();
-        const tSpan = document.getElementById('bp-time-span');
-        if (document.getElementById('toggle-time-cb').checked) {
-            tSpan.style.display = 'inline';
-            if (timeMode === 'solar') { tSpan.innerText = `${now.getFullYear()}.${now.getMonth()+1}.${now.getDate()}`; } 
-            else {
-                const tg = ["甲","乙","丙","丁","戊","己","庚","辛","壬","癸"];
-                const dz = ["子","丑","寅","卯","辰","巳","午","未","申","酉","戌","亥"];
-                tSpan.innerText = `${tg[(now.getFullYear()-4)%10]}${dz[(now.getFullYear()-4)%12]}年 仲冬月`;
-            }
-        } else { tSpan.style.display = 'none'; }
-        const wmSpan = document.getElementById('bp-wm-span');
-        wmSpan.style.display = document.getElementById('toggle-watermark-cb').checked ? 'inline' : 'none';
-        wmSpan.innerText = document.getElementById('watermark-text-input').value.trim();
-    };
-
-    window.bpSetTimeMode = function(m) {
-        timeMode = m;
-        document.getElementById('bp-t-solar').classList.toggle('active', m === 'solar');
-        document.getElementById('bp-t-lunar').classList.toggle('active', m === 'lunar');
-        bpUpdateMeta();
-    };
-
-    // 事件绑定与抽屉开关
-    document.getElementById('bp-btn-drawer').onclick = () => {
-        document.getElementById('bp-right-drawer').classList.remove('open');
-        document.getElementById('bp-left-drawer').classList.toggle('open');
-        document.getElementById('bp-common-mask').classList.add('visible');
-    };
-    document.getElementById('bp-btn-settings').onclick = () => {
-        document.getElementById('bp-left-drawer').classList.remove('open');
-        document.getElementById('bp-right-drawer').classList.toggle('open');
-        document.getElementById('bp-common-mask').classList.add('visible');
-    };
-    document.getElementById('bp-btn-author').onclick = () => {
-        document.getElementById('bp-left-drawer').classList.remove('open');
-        document.getElementById('bp-right-drawer').classList.add('open');
-        document.getElementById('bp-author-box').scrollIntoView({behavior:'smooth'});
-        document.getElementById('bp-common-mask').classList.add('visible');
-    };
-    document.getElementById('bp-btn-close').onclick = () => document.getElementById('bp-modal-container').style.display = 'none';
-    document.getElementById('bp-common-mask').onclick = () => {
-        document.getElementById('bp-left-drawer').classList.remove('open');
-        document.getElementById('bp-right-drawer').classList.remove('open');
-        document.getElementById('bp-common-mask').classList.remove('visible');
-    };
-
-    document.getElementById('bp-layout-v').onclick = function() {
-        this.classList.add('active'); document.getElementById('bp-layout-h').classList.remove('active');
-        document.getElementById('bp-poster-canvas').classList.remove('layout-horizontal');
-    };
-    document.getElementById('bp-layout-h').onclick = function() {
-        this.classList.add('active'); document.getElementById('bp-layout-v').classList.remove('active');
-        document.getElementById('bp-poster-canvas').classList.add('layout-horizontal');
-    };
-
-    window.bpSyncCollageSize = function() {
-        const c = document.getElementById('bp-collage-area');
-        const s = document.getElementById('bp-source-area');
-        if (document.getElementById('bp-poster-canvas').classList.contains('layout-horizontal')) {
-            c.style.height = s.offsetHeight + 'px'; c.style.width = s.offsetWidth + 'px';
-        } else {
-            c.style.width = '100%'; c.style.height = s.offsetHeight + 'px';
+    function updateMeta() {
+        const t = $id('bpTime'), w = $id('bpWm');
+        if (t) {
+            const cb = $id('bpTimeCb');
+            if (cb && cb.checked) {
+                t.style.display = 'inline';
+                const d = new Date();
+                if (timeMode === 'solar') t.textContent = d.getFullYear() + '.' + (d.getMonth() + 1) + '.' + d.getDate();
+                else {
+                    const tg = ["甲","乙","丙","丁","戊","己","庚","辛","壬","癸"], dz = ["子","丑","寅","卯","辰","巳","午","未","申","酉","戌","亥"];
+                    t.textContent = tg[(d.getFullYear() - 4) % 10] + dz[(d.getFullYear() - 4) % 12] + '年 仲冬月';
+                }
+            } else t.style.display = 'none';
         }
-    };
-
-    const resizer = document.getElementById('bp-collage-resizer');
-    let rIsD = false, rSx, rSy, rSw, rSh;
-    const rStart = (e) => {
-        rIsD = true; const p = e.touches ? e.touches[0] : e;
-        rSx = p.clientX; rSy = p.clientY;
-        const c = document.getElementById('bp-collage-area');
-        rSw = c.offsetWidth; rSh = c.offsetHeight; e.stopPropagation();
-    };
-    const rMove = (e) => {
-        if (!rIsD) return; const p = e.touches ? e.touches[0] : e;
-        const c = document.getElementById('bp-collage-area');
-        if (document.getElementById('bp-poster-canvas').classList.contains('layout-horizontal')) {
-            c.style.width = Math.max(120, rSw + (p.clientX - rSx)) + 'px';
-            c.style.height = document.getElementById('bp-source-area').offsetHeight + 'px';
-        } else {
-            c.style.height = Math.max(120, rSh + (p.clientY - rSy)) + 'px';
+        if (w) {
+            const cb = $id('bpWmCb'), inp = $id('bpWmInput');
+            w.style.display = (cb && cb.checked) ? 'inline' : 'none';
+            if (inp) w.textContent = inp.value.trim();
         }
-    };
-    const rEnd = () => { rIsD = false; };
-    resizer.addEventListener('mousedown', rStart); window.addEventListener('mousemove', rMove); window.addEventListener('mouseup', rEnd);
-    resizer.addEventListener('touchstart', rStart, {passive:true}); window.addEventListener('touchmove', rMove, {passive:true}); window.addEventListener('touchend', rEnd);
-
-    window.bpSetTopFontSize = function(val) {
-        document.documentElement.style.setProperty('--bp-top-font-size', val + 'px');
-        setTimeout(() => {
-            if (document.getElementById('bp-poster-canvas').classList.contains('layout-horizontal')) {
-                document.getElementById('bp-collage-area').style.height = document.getElementById('bp-source-area').offsetHeight + 'px';
-            }
-        }, 30);
     }
-    window.bpSetScrapFontSize = function(val) { document.documentElement.style.setProperty('--bp-scrap-font-size', val + 'px'); }
 
-    document.getElementById('bp-btn-save').onclick = () => {
-        document.getElementById('bp-left-drawer').classList.remove('open');
-        document.getElementById('bp-right-drawer').classList.remove('open');
-        document.getElementById('bp-common-mask').classList.remove('visible');
-        document.getElementById('bp-collage-resizer').style.display = 'none';
-        
-        html2canvas(document.getElementById('bp-poster-canvas'), { scale: 4, useCORS: true, backgroundColor: null }).then(c => {
-            document.getElementById('bp-collage-resizer').style.display = 'flex';
+    // ===== 颜色盘 =====
+    const cats = {
+        浅色: ['#F7F5F0', '#FFFFFF', '#F2F2F2', '#F0ECE1', '#EFE5E3', '#E5EADF'],
+        复古: ['#6B2D2B', '#334839', '#203A4C', '#D9CBB7', '#6B442A', '#C99E5C'],
+        深色: ['#111111', '#1C1E21', '#2B2B2B', '#0F1A24', '#1E1524', '#241B18']
+    };
+    function buildPal(id, cb) {
+        const c = $id(id);
+        if (!c) return;
+        Object.keys(cats).forEach(k => {
+            const row = document.createElement('div');
+            row.className = 'bpColRow';
+            cats[k].forEach(col => {
+                const b = document.createElement('button');
+                b.className = 'bpCol';
+                b.style.background = col;
+                b.onclick = () => cb(col);
+                row.appendChild(b);
+            });
+            c.appendChild(row);
+        });
+    }
+    function setTopBg(c) {
+        rootStyle.setProperty('--bpTopBg', c);
+        rootStyle.setProperty('--bpScrapBg', c);
+        const v = parseInt(c.replace('#', ''), 16);
+        const luma = 0.2126 * ((v >> 16) & 255) + 0.7152 * ((v >> 8) & 255) + 0.0722 * (v & 255);
+        rootStyle.setProperty('--bpCutColor', luma > 140 ? 'rgba(0,0,0,0.06)' : 'rgba(255,255,255,0.15)');
+    }
+    function setBotBg(c) { rootStyle.setProperty('--bpBotBg', c); }
+    buildPal('bpTopPal', setTopBg);
+    buildPal('bpBotPal', setBotBg);
+
+    const txtCols = ['#1A1A1A', '#FFFFFF', '#666666', '#6B2D2B', '#334839', '#203A4C', '#D9CBB7', '#EFE5E3'];
+    const tpal = $id('bpTxtPal');
+    if (tpal) {
+        const row = document.createElement('div');
+        row.className = 'bpColRow';
+        txtCols.forEach(col => {
+            const b = document.createElement('button');
+            b.className = 'bpCol';
+            b.style.background = col;
+            b.onclick = () => rootStyle.setProperty('--bpTextColor', col);
+            row.appendChild(b);
+        });
+        tpal.appendChild(row);
+    }
+
+    // 名人按钮
+    const al = $id('bpAuthorList');
+    if (al) authors.forEach(a => {
+        const b = document.createElement('div');
+        b.className = 'bpAuthor';
+        b.textContent = a.n;
+        b.onclick = () => { genAuthor(a); closeDrawers(); };
+        al.appendChild(b);
+    });
+
+    // ===== 事件绑定（全部委托，绝不崩） =====
+    function openL() { const l = $id('bpLeft'), r = $id('bpRight'); if (r) r.classList.remove('on'); if (l) l.classList.toggle('on'); }
+    function openR() { const l = $id('bpLeft'), r = $id('bpRight'); if (l) l.classList.remove('on'); if (r) r.classList.toggle('on'); }
+    function closeDrawers() { const l = $id('bpLeft'), r = $id('bpRight'); if (l) l.classList.remove('on'); if (r) r.classList.remove('on'); }
+
+    box.addEventListener('click', (e) => {
+        const t = e.target.closest('[id],[data-act],[data-tex],[data-font],[data-mask],[data-mstyle],[data-time]');
+        if (!t) return;
+
+        if (t.id === 'bpMenu') openL();
+        else if (t.id === 'bpSet') openR();
+        else if (t.id === 'bpAuthor') { openR(); }
+        else if (t.id === 'bpClose') { const m = $id('bpModal'); if (m) m.style.display = 'none'; }
+        else if (t.id === 'bpLV') { t.classList.add('on'); const h = $id('bpLH'); if (h) h.classList.remove('on'); const c = $id('bpCanvas'); if (c) c.classList.remove('horiz'); }
+        else if (t.id === 'bpLH') { t.classList.add('on'); const v = $id('bpLV'); if (v) v.classList.remove('on'); const c = $id('bpCanvas'); if (c) c.classList.add('horiz'); }
+        else if (t.id === 'bpSave') doSave();
+
+        const act = t.dataset.act;
+        if (act === 'arr1') arrange(1);
+        else if (act === 'arr2') arrange(2);
+        else if (act === 'arr3') arrange(3);
+        else if (act === 'reset') resetCuts();
+        else if (act === 'sync') syncSize();
+
+        if (t.dataset.tex) {
+            const [zone, type] = t.dataset.tex.split('-');
+            document.querySelectorAll('[data-tex^="' + zone + '"]').forEach(b => b.classList.remove('on'));
+            t.classList.add('on');
+            applyTex(zone, type);
+        }
+        if (t.dataset.font) {
+            document.querySelectorAll('.bpFont[data-font="' + t.dataset.font + '"]').forEach(f => f.classList.remove('on'));
+            t.classList.add('on');
+            rootStyle.setProperty(t.dataset.font === 'top' ? '--bpTopFont' : '--bpBotFont', t.dataset.val);
+        }
+        if (t.dataset.mask) {
+            if (t.dataset.mask === 'user') { maskU = !maskU; const s = $id('bpSymU'); if (s) s.textContent = maskU ? '✦' : '⊹'; }
+            else { maskC = !maskC; const s = $id('bpSymC'); if (s) s.textContent = maskC ? '✦' : '⊹'; }
+            applyMask();
+        }
+        if (t.dataset.mstyle) {
+            maskStyle = t.dataset.mstyle;
+            document.querySelectorAll('[data-mstyle]').forEach(b => b.classList.remove('on'));
+            t.classList.add('on');
+            applyMask();
+        }
+        if (t.dataset.time) {
+            timeMode = t.dataset.time;
+            document.querySelectorAll('[data-time]').forEach(b => b.classList.remove('on'));
+            t.classList.add('on');
+            updateMeta();
+        }
+    });
+
+    box.addEventListener('input', (e) => {
+        const t = e.target;
+        if (t.dataset.set) {
+            if (t.dataset.set === 'top') setTopBg(t.value);
+            else if (t.dataset.set === 'bot') setBotBg(t.value);
+            else if (t.dataset.set === 'txt') rootStyle.setProperty('--bpTextColor', t.value);
+        }
+        if (t.dataset.size) {
+            rootStyle.setProperty(t.dataset.size === 'top' ? '--bpTopSize' : '--bpBotSize', t.value + 'px');
+        }
+        if (t.id === 'bpWmInput' || t.id === 'bpTimeCb' || t.id === 'bpWmCb') updateMeta();
+    });
+
+    function applyTex(zone, type) {
+        const layerId = zone === 'top' ? 'bpTop' : 'bpBottom';
+        const el = $id(layerId);
+        if (!el) return;
+        let overlay = el.querySelector('.bpTexLayer');
+        if (!overlay) {
+            overlay = document.createElement('div');
+            overlay.className = 'bpTexLayer';
+            overlay.style.cssText = 'position:absolute;inset:0;pointer-events:none;mix-blend-mode:overlay;z-index:5;';
+            el.appendChild(overlay);
+        }
+        if (type === 'none') { overlay.style.filter = 'none'; overlay.style.background = 'none'; overlay.style.opacity = 0; }
+        else if (type === 'frost') { overlay.style.filter = 'url(#bpFrost)'; overlay.style.background = '#888'; overlay.style.opacity = 0.3; }
+        else if (type === 'noise') { overlay.style.filter = 'url(#bpNoise)'; overlay.style.background = '#888'; overlay.style.opacity = 0.3; }
+    }
+
+    function syncSize() {
+        const c = $id('bpBottom'), s = $id('bpTop'), cv = $id('bpCanvas');
+        if (!c || !s || !cv) return;
+        if (cv.classList.contains('horiz')) { c.style.height = s.offsetHeight + 'px'; c.style.width = s.offsetWidth + 'px'; }
+        else { c.style.width = '100%'; c.style.height = s.offsetHeight + 'px'; }
+    }
+
+    // 拉伸器
+    const rz = $id('bpResizer');
+    if (rz) {
+        let d = false, sx, sy, sw, sh;
+        const start = (e) => {
+            d = true;
+            const p = e.touches ? e.touches[0] : e;
+            sx = p.clientX; sy = p.clientY;
+            const c = $id('bpBottom'); sw = c.offsetWidth; sh = c.offsetHeight;
+            e.stopPropagation();
+        };
+        const move = (e) => {
+            if (!d) return;
+            const p = e.touches ? e.touches[0] : e;
+            const c = $id('bpBottom'), cv = $id('bpCanvas');
+            if (cv.classList.contains('horiz')) {
+                c.style.width = Math.max(120, sw + (p.clientX - sx)) + 'px';
+                c.style.height = $id('bpTop').offsetHeight + 'px';
+            } else c.style.height = Math.max(120, sh + (p.clientY - sy)) + 'px';
+        };
+        const end = () => { d = false; };
+        rz.addEventListener('mousedown', start); window.addEventListener('mousemove', move); window.addEventListener('mouseup', end);
+        rz.addEventListener('touchstart', start, { passive: true }); window.addEventListener('touchmove', move, { passive: true }); window.addEventListener('touchend', end);
+    }
+
+    function doSave() {
+        closeDrawers();
+        const rz = $id('bpResizer'); if (rz) rz.style.display = 'none';
+        html2canvas($id('bpCanvas'), { scale: 4, useCORS: true, backgroundColor: null }).then(c => {
+            if (rz) rz.style.display = 'flex';
             const a = document.createElement('a');
-            a.download = `Poem_HD_${Date.now()}.png`;
+            a.download = 'Poem_' + Date.now() + '.png';
             a.href = c.toDataURL('image/png', 1.0);
             a.click();
         });
-    };
+    }
 
-    // 打开工坊核心函数 (优先提取选中文本)
     window.openBlackoutPoetry = function () {
-        let targetText = "";
-        const currentSel = window.getSelection() ? window.getSelection().toString().trim() : "";
-        if (currentSel) {
-            targetText = currentSel;
-        } else if (lastUserSelectedText) {
-            targetText = lastUserSelectedText;
-            lastUserSelectedText = "";
-        }
-        if (!targetText && window.SillyTavern) {
-            const ctx = SillyTavern.getContext();
-            const chat = ctx.chat || [];
-            for (let i = chat.length - 1; i >= 0; i--) {
-                if (chat[i].is_user === false && chat[i].mes) {
-                    targetText = chat[i].mes;
-                    break;
+        let txt = "";
+        const cur = window.getSelection() ? window.getSelection().toString().trim() : "";
+        if (cur) txt = cur;
+        else if (lastSel) { txt = lastSel; lastSel = ""; }
+        if (!txt && window.SillyTavern) {
+            try {
+                const chat = SillyTavern.getContext().chat || [];
+                for (let i = chat.length - 1; i >= 0; i--) {
+                    if (chat[i].is_user === false && chat[i].mes) { txt = chat[i].mes; break; }
                 }
-            }
+            } catch (e) {}
         }
-        if (!targetText) targetText = "空空如也，请先划选一段文字，或者与角色对话后再开启。";
-        const clean = $('<div>').html(targetText).text().trim();
-        document.getElementById('bp-modal-container').style.display = 'flex';
-        window.bpRenderText(clean);
+        if (!txt) txt = "请先划选一段文字，或与角色对话后再开启。";
+        const clean = $('<div>').html(txt).text().trim();
+        const m = $id('bpModal');
+        if (m) m.style.display = 'flex';
+        renderText(clean);
     };
 
-    // 核心挂载：正式挂载进魔法棒抽屉！
+    // 挂载魔法棒
     jQuery(async () => {
         try {
-            const settingsHtml = await $.get('/scripts/extensions/third-party/st-blackout-poetry/settings.html');
-            $('#extensions_settings').append(settingsHtml);
-            $(document).on('click', '#bp_open_studio_btn', () => { window.openBlackoutPoetry(); });
-            console.log("[剪报拼贴诗] 已强制护航挂载就绪！");
-        } catch (err) {
-            console.warn("[剪报拼贴诗] 挂载重试...", err);
-        }
+            const h = await $.get('/scripts/extensions/third-party/st-blackout-poetry/settings.html');
+            $('#extensions_settings').append(h);
+            $(document).on('click', '#bp_open_studio_btn', () => window.openBlackoutPoetry());
+            console.log('[剪报拼贴诗] 就绪');
+        } catch (e) { console.warn('[剪报拼贴诗]', e); }
     });
 })();
