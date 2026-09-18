@@ -1,9 +1,9 @@
 // 剪报拼贴诗 - SillyTavern Extension
-// 不使用 import，使用全局 SillyTavern 对象
+// 严格遵循官方规范：不使用任何 import，直接使用全局 SillyTavern 对象
 
 jQuery(async () => {
 
-    // 1. 加载外部依赖
+    // ========== 1. 加载外部依赖 ==========
     if (!window.html2canvas) {
         var s = document.createElement('script');
         s.src = 'https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js';
@@ -14,7 +14,7 @@ jQuery(async () => {
     fl.rel = 'stylesheet';
     document.head.appendChild(fl);
 
-    // 2. 注入 CSS
+    // ========== 2. 注入所有 CSS（作用域隔离到 #bp-app-container）==========
     var css = document.createElement('style');
     css.textContent = `
 #bp-app-container {
@@ -107,13 +107,17 @@ jQuery(async () => {
 #bp-app-container #poster-bottom-meta { position:absolute; bottom:12px; left:0; width:100%; display:flex; justify-content:center; align-items:center; gap:8px; font-size:8.5px; letter-spacing:0.1em; color:var(--shared-text-color); opacity:0.45; pointer-events:none; }
 #bp-app-container #bottom-icon-slot { display:inline-flex; align-items:center; justify-content:center; }
 #bp-app-container #bottom-icon-slot img { width:11px; height:11px; object-fit:cover; vertical-align:middle; border-radius:50%; }
-#bp-bubble-btn { position:fixed; right:10px; top:50%; transform:translateY(-50%); width:40px; height:40px; background:#fff; border-radius:20px; box-shadow:-2px 2px 10px rgba(0,0,0,0.1); z-index:9990; display:flex; justify-content:center; align-items:center; cursor:pointer; transition:0.2s; border:1px solid #e0e0e0; font-size:20px; line-height:1; }
-#bp-bubble-btn:hover { box-shadow:-2px 2px 14px rgba(0,0,0,0.15); }
+
+/* 全局透明悬浮泡泡按钮 (去掉白底边框阴影) */
+#bp-bubble-btn { position:fixed; right:12px; top:50%; transform:translateY(-50%); background:transparent; border:none; box-shadow:none; z-index:9990; display:flex; justify-content:center; align-items:center; cursor:pointer; font-size:26px; line-height:1; padding:0; transition:transform 0.15s ease, opacity 0.15s ease; opacity:0.85; -webkit-tap-highlight-color: transparent; }
+#bp-bubble-btn:active { transform:translateY(-50%) scale(0.9); opacity:1; }
+
+/* 选词底部小弹窗 */
 #bp-sel-popup { position:fixed; bottom:90px; left:50%; transform:translateX(-50%); z-index:99999; background:rgba(28,28,28,0.92); color:#fff; padding:8px 16px; border-radius:20px; box-shadow:0 4px 12px rgba(0,0,0,0.2); font-size:12px; display:none; align-items:center; gap:6px; cursor:pointer; backdrop-filter:blur(6px); }
     `;
     document.head.appendChild(css);
 
-    // 3. 注入 HTML
+    // ========== 3. 注入 HTML 结构 ==========
     var container = document.createElement('div');
     container.id = 'bp-app-container';
     container.innerHTML = `
@@ -220,7 +224,7 @@ jQuery(async () => {
     `;
     document.body.appendChild(container);
 
-    // 全局悬浮泡泡按钮
+    // 全局透明悬浮泡泡按钮
     var bubbleBtn = document.createElement('div');
     bubbleBtn.id = 'bp-bubble-btn';
     bubbleBtn.innerHTML = '&#x1FAE7;';
@@ -233,7 +237,7 @@ jQuery(async () => {
     selPopup.innerHTML = '<span style="font-size:14px;line-height:1;">&#x1FAE7;</span><span>生成拼贴诗</span>';
     document.body.appendChild(selPopup);
 
-    // 4. 完整 JS 逻辑
+    // ========== 4. 完整 JS 逻辑 ==========
     var root = container;
     var colorCategories = {
         light:[{name:'复古奶白',bg:'#F7F5F0'},{name:'冷纯白',bg:'#FFFFFF'},{name:'冷灰',bg:'#F2F2F2'},{name:'燕麦',bg:'#F0ECE1'},{name:'灰粉',bg:'#EFE5E3'},{name:'鼠尾草绿',bg:'#E5EADF'}],
@@ -344,13 +348,13 @@ jQuery(async () => {
         getGanZhiDate, setTimeFormat, updateBottomMeta
     });
 
-    // 5. 初始化
+    // ========== 5. 初始化 ==========
     initColorPaletteUI('topPaletteContainer', setTopBg);
     initColorPaletteUI('bottomPaletteContainer', setBottomBg);
     initTextColorPaletteUI();
     initCollageResizer();
 
-    // 6. 魔法棒面板挂载
+    // ========== 6. 在魔法棒面板挂载 ==========
     var mountExt = function() {
         var panel = document.getElementById('extensions_settings');
         if (panel && !document.getElementById('bp-ext-item')) {
@@ -364,7 +368,7 @@ jQuery(async () => {
     setTimeout(mountExt, 1500);
     setInterval(mountExt, 5000);
 
-    // 7. 选词弹窗
+    // ========== 7. 选词弹窗 ==========
     var selectedText = '';
     document.addEventListener('selectionchange', function() {
         var sel = window.getSelection();
@@ -381,7 +385,9 @@ jQuery(async () => {
         selPopup.style.display = 'none';
         window.openBpApp(selectedText);
     };
-});
-$(document).on('click', '#bp_open_studio_btn', function() {
-    window.openBpApp(null);
+
+    // 绑定 settings.html 中的按钮点击事件
+    $(document).on('click', '#bp_open_studio_btn', function() {
+        window.openBpApp(null);
+    });
 });
