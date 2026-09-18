@@ -22,13 +22,13 @@ jQuery(async () => {
         });
     }
 
+    var FONT_HREF = 'https://fonts.googleapis.com/css2?family=Ma+Shan+Zheng&family=Noto+Sans+SC:wght@300;400;500&family=Noto+Serif+SC:wght@300;400;600&family=ZCOOL+XiaoWei&display=swap';
     var fl = document.createElement('link');
-    fl.href = 'https://fonts.googleapis.com/css2?family=Ma+Shan+Zheng&family=Noto+Sans+SC:wght@300;400;500&family=Noto+Serif+SC:wght@300;400;600&family=ZCOOL+XiaoWei&display=swap';
+    fl.href = FONT_HREF;
     fl.rel = 'stylesheet';
     document.head.appendChild(fl);
 
-    var css = document.createElement('style');
-    css.textContent = `
+    var CSS_TEXT = `
 #bp-app-container {
     --page-bg:#F5F5F7; --top-bg:#F7F5F0; --top-bg-img:none; --top-cut-color:rgba(0,0,0,0.06);
     --top-font-size:14.5px; --top-grain-opacity:0; --top-font-family:'Noto Serif SC',serif;
@@ -117,6 +117,8 @@ jQuery(async () => {
 #bp-bubble-btn:active { transform:translateY(-50%) scale(0.9); opacity:1; }
 #bp-sel-popup { position:fixed; bottom:90px; left:50%; transform:translateX(-50%); z-index:99999; background:rgba(28,28,28,0.92); color:#fff; padding:8px 16px; border-radius:20px; box-shadow:0 4px 12px rgba(0,0,0,0.2); font-size:12px; display:none; align-items:center; gap:6px; cursor:pointer; backdrop-filter:blur(6px); }
     `;
+    var css = document.createElement('style');
+    css.textContent = CSS_TEXT;
     document.head.appendChild(css);
 
     var container = document.createElement('div');
@@ -320,23 +322,84 @@ jQuery(async () => {
     function uploadBottomBg(e){var f=e.target.files[0];if(!f)return;var r=new FileReader();r.onload=function(ev){collageArea.style.backgroundImage='url('+ev.target.result+')';};r.readAsDataURL(f);}
     function resetCuts(){textFlow.querySelectorAll('.char-node.is-cut').forEach(function(n){n.classList.remove('is-cut');});collageArea.querySelectorAll('.scrap-word').forEach(function(n){n.remove();});}
 
+    // ===== iframe 沙箱截图（不扫描酒馆主文档 CSS，速度快 10 倍，不卡死）=====
     function exportPosterImage(){
         if(typeof html2canvas==='undefined'){toastr.warning('截图组件加载中，请稍后再试');return;}
         closeAllDrawers();
         resizer.style.display='none';
         setTimeout(function(){
-            try{
-                html2canvas(posterCanvas,{scale:1,useCORS:true,allowTaint:true,backgroundColor:null,logging:false,windowWidth:posterCanvas.scrollWidth,windowHeight:posterCanvas.scrollHeight}).then(function(canvas){
-                    resizer.style.display='flex';
-                    try{
-                        var link=document.createElement('a');link.download='BlackoutPoetry_'+Date.now()+'.png';link.href=canvas.toDataURL('image/png');link.click();
-                        toastr.success('保存成功');
-                    }catch(e2){
-                        canvas.toBlob(function(blob){var url=URL.createObjectURL(blob);var a=document.createElement('a');a.href=url;a.download='BlackoutPoetry_'+Date.now()+'.png';a.click();setTimeout(function(){URL.revokeObjectURL(url);},3000);toastr.success('保存成功');},'image/png');
-                    }
-                }).catch(function(err){resizer.style.display='flex';toastr.error('保存失败');});
-            }catch(e){resizer.style.display='flex';toastr.error('截图出错');}
-        },150);
+            var iframe = document.createElement('iframe');
+            iframe.setAttribute('aria-hidden','true');
+            var cardW = Math.max(posterCanvas.offsetWidth || 440, 280);
+            var cardH = Math.max(posterCanvas.offsetHeight || 600, 300);
+            iframe.style.cssText = 'position:fixed;left:-99999px;top:0;width:'+(cardW+8)+'px;height:'+(cardH+8)+'px;border:0;visibility:hidden;';
+            document.body.appendChild(iframe);
+            try {
+                var idoc = iframe.contentDocument;
+                var cs = getComputedStyle(container);
+                var varNames = ['--top-bg','--bottom-bg','--scrap-bg','--top-cut-color','--top-font-size','--top-font-family','--scrap-font-size','--scrap-font-family','--shared-text-color','--top-grain-opacity','--bottom-grain-opacity','--page-bg','--top-bg-img','--bottom-bg-img'];
+                var varStr = '';
+                varNames.forEach(function(v){ var val = cs.getPropertyValue(v); if(val) varStr += v + ':' + val + ';'; });
+                idoc.open();
+                idoc.write('<!DOCTYPE html><html><head><meta charset="utf-8"><link rel="stylesheet" href="'+FONT_HREF+'"><style>html,body{margin:0;padding:0;}'+CSS_TEXT+'</style></head><body></body></html>');
+                idoc.close();
+
+                var wrap = idoc.createElement('div');
+                wrap.id = 'bp-app-container';
+                wrap.style.cssText = 'position:static;display:block;width:auto;height:auto;padding:0;background:transparent;'+varStr;
+                var clone = posterCanvas.cloneNode(true);
+                var rs = clone.querySelector('#collage-resizer');
+                if(rs) rs.remove();
+                wrap.appendChild(clone);
+                idoc.body.appendChild(wrap);
+
+                setTimeout(function(){
+                    var done = function(canvas){
+                        try { iframe.remove(); } catch(e){}
+                        resizer.style.display='flex';
+                        try {
+                            var dataUrl = canvas.toDataURL('image/png');
+                            var link = document.createElement('a');
+                            link.download = 'BlackoutPoetry_'+Date.now()+'.png';
+                            link.href = dataUrl;
+                            document.body.appendChild(link);
+                            link.click();
+                            link.remove();
+                            toastr.success('已生成图片');
+                        } catch(e){
+                            canvas.toBlob(function(blob){
+                                var url = URL.createObjectURL(blob);
+                                var a = document.createElement('a');
+                                a.href = url; a.download = 'BlackoutPoetry_'+Date.now()+'.png';
+                                document.body.appendChild(a); a.click(); a.remove();
+                                setTimeout(function(){ URL.revokeObjectURL(url); }, 3000);
+                                toastr.success('已生成图片');
+                            }, 'image/png');
+                        }
+                    };
+                    var fail = function(err){
+                        try { iframe.remove(); } catch(e){}
+                        resizer.style.display='flex';
+                        toastr.error('保存失败: ' + (err && err.message || err));
+                    };
+                    try {
+                        html2canvas(clone, {
+                            scale: 2,
+                            useCORS: true,
+                            allowTaint: true,
+                            backgroundColor: null,
+                            logging: false,
+                            windowWidth: clone.scrollWidth,
+                            windowHeight: clone.scrollHeight
+                        }).then(done).catch(fail);
+                    } catch(e){ fail(e); }
+                }, 120);
+            } catch(e){
+                try { iframe.remove(); } catch(e2){}
+                resizer.style.display='flex';
+                toastr.error('截图出错: ' + (e && e.message || e));
+            }
+        }, 100);
     }
 
     Object.assign(window, {
