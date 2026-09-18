@@ -2,15 +2,26 @@
 
 jQuery(async () => {
 
-    if (!window.html2canvas) {
+        if (!window.html2canvas) {
         await new Promise(function(resolve, reject) {
             var s = document.createElement('script');
-            s.src = 'https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js';
+            try {
+                s.src = new URL('./lib/html2canvas.min.js', import.meta.url).href;
+            } catch(e) {
+                s.src = '/scripts/extensions/third-party/st-blackout-poetry/lib/html2canvas.min.js';
+            }
             s.onload = resolve;
-            s.onerror = reject;
+            s.onerror = function() {
+                var s2 = document.createElement('script');
+                s2.src = 'https://cdn.staticfile.org/html2canvas/1.4.1/html2canvas.min.js';
+                s2.onload = resolve;
+                s2.onerror = reject;
+                document.head.appendChild(s2);
+            };
             document.head.appendChild(s);
         });
     }
+
     var fl = document.createElement('link');
     fl.href = 'https://fonts.googleapis.com/css2?family=Ma+Shan+Zheng&family=Noto+Sans+SC:wght@300;400;500&family=Noto+Serif+SC:wght@300;400;600&family=ZCOOL+XiaoWei&display=swap';
     fl.rel = 'stylesheet';
