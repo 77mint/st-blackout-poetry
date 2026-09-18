@@ -382,3 +382,6 @@ jQuery(async () => {
         window.openBpApp(selectedText);
     };
 });
+$(document).on('click', '#bp_open_studio_btn', function() {
+    window.openBpApp(null);
+});
