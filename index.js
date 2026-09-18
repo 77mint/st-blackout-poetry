@@ -1,20 +1,23 @@
 // 剪报拼贴诗 - SillyTavern Extension
-// 严格遵循官方规范：不使用任何 import，直接使用全局 SillyTavern 对象
 
 jQuery(async () => {
 
-    // ========== 1. 加载外部依赖 ==========
+    // 1. 加载依赖
     if (!window.html2canvas) {
-        var s = document.createElement('script');
-        s.src = 'https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js';
-        document.head.appendChild(s);
+        await new Promise(function(resolve, reject) {
+            var s = document.createElement('script');
+            s.src = 'https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js';
+            s.onload = resolve;
+            s.onerror = reject;
+            document.head.appendChild(s);
+        });
     }
     var fl = document.createElement('link');
     fl.href = 'https://fonts.googleapis.com/css2?family=Ma+Shan+Zheng&family=Noto+Sans+SC:wght@300;400;500&family=Noto+Serif+SC:wght@300;400;600&family=ZCOOL+XiaoWei&display=swap';
     fl.rel = 'stylesheet';
     document.head.appendChild(fl);
 
-    // ========== 2. 注入所有 CSS（作用域隔离到 #bp-app-container）==========
+    // 2. CSS
     var css = document.createElement('style');
     css.textContent = `
 #bp-app-container {
@@ -28,6 +31,11 @@ jQuery(async () => {
     font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;
 }
 #bp-app-container, #bp-app-container *, #bp-app-container *::before, #bp-app-container *::after { box-sizing:border-box; margin:0; padding:0; user-select:none; -webkit-user-select:none; }
+#bp-app-container input[type="file"] { user-select:auto !important; -webkit-user-select:auto !important; pointer-events:auto !important; }
+#bp-app-container input[type="color"] { user-select:auto !important; -webkit-user-select:auto !important; }
+#bp-app-container input[type="text"] { user-select:auto !important; -webkit-user-select:auto !important; }
+#bp-app-container input[type="checkbox"] { user-select:auto !important; -webkit-user-select:auto !important; }
+#bp-app-container input[type="range"] { user-select:auto !important; -webkit-user-select:auto !important; }
 #bp-app-container #top-left-bar { position:fixed; top:20px; left:20px; display:flex; align-items:center; gap:8px; z-index:2005; }
 #bp-app-container #top-right-bar { position:fixed; top:20px; right:20px; display:flex; align-items:center; gap:8px; z-index:2005; }
 #bp-app-container .icon-btn { width:36px; height:36px; display:flex; justify-content:center; align-items:center; cursor:pointer; background:rgba(255,255,255,0.92); border:1px solid rgba(0,0,0,0.08); border-radius:4px; backdrop-filter:blur(8px); box-shadow:0 4px 15px rgba(0,0,0,0.04); transition:all 0.2s ease; }
@@ -56,8 +64,8 @@ jQuery(async () => {
 #bp-app-container .grid-buttons { display:grid; grid-template-columns:repeat(3,1fr); gap:4px; margin-bottom:6px; }
 #bp-app-container .action-chip { background:#F4F4F4; border:1px solid rgba(0,0,0,0.05); color:#333; padding:6px 0; text-align:center; border-radius:2px; cursor:pointer; font-size:10px; transition:all 0.15s; }
 #bp-app-container .action-chip:hover, #bp-app-container .action-chip.active { background:#1C1C1C; color:#FFF; }
-#bp-app-container .file-wrapper { position:relative; overflow:hidden; display:block; margin-top:4px; }
-#bp-app-container .file-wrapper input[type="file"] { position:absolute; left:0; top:0; opacity:0; cursor:pointer; width:100%; height:100%; }
+#bp-app-container .file-wrapper { position:relative; overflow:visible; display:block; margin-top:4px; }
+#bp-app-container .file-wrapper input[type="file"] { position:absolute; left:0; top:0; opacity:0; cursor:pointer; width:100%; height:100%; z-index:10; }
 #bp-app-container .slider-row { display:flex; align-items:center; justify-content:space-between; margin-top:6px; }
 #bp-app-container .slider-row span { color:#777; font-size:9.5px; }
 #bp-app-container .slider-row input[type="range"] { width:150px; accent-color:#000; }
@@ -75,23 +83,15 @@ jQuery(async () => {
 #bp-app-container .icon-preview-row { display:flex; align-items:center; justify-content:space-between; background:#F7F7F7; border:1px solid #E5E5E5; padding:6px 10px; border-radius:2px; margin-top:6px; }
 #bp-app-container .icon-preview-box { width:22px; height:22px; display:flex; align-items:center; justify-content:center; background:#FFF; border:1px solid #DDD; border-radius:50%; overflow:hidden; }
 #bp-app-container .icon-preview-box img { width:18px; height:18px; object-fit:cover; border-radius:50%; }
-#bp-app-container .mask-clean-group { display:flex; flex-direction:column; gap:8px; margin-top:6px; }
-#bp-app-container .mask-clean-row { display:flex; align-items:center; gap:8px; cursor:pointer; font-size:11.5px; color:#1A1A1A; line-height:1; }
-#bp-app-container .mask-icon-symbol { font-size:14px; display:inline-block; width:14px; text-align:center; color:#1C1C1C; }
-#bp-app-container .mask-type-options { display:grid; grid-template-columns:repeat(3,1fr); gap:4px; margin-top:8px; }
 #bp-app-container #poster-canvas { box-shadow:0 12px 45px rgba(0,0,0,0.08); position:relative; display:flex; flex-direction:column; border:1px solid rgba(0,0,0,0.06); touch-action:none; width:440px; }
 #bp-app-container #poster-canvas.layout-horizontal { flex-direction:row !important; width:auto !important; }
 #bp-app-container #source-area { background-color:var(--top-bg); background-image:var(--top-bg-img); background-size:cover; background-position:center; padding:40px 36px 30px 36px; position:relative; flex-shrink:0; height:auto; font-family:var(--top-font-family); }
 #bp-app-container #poster-canvas.layout-horizontal #source-area { width:360px; }
 #bp-app-container .text-flow { color:var(--shared-text-color); font-size:var(--top-font-size); line-height:2.2; letter-spacing:0.06em; text-align:justify; word-break:break-all; }
-#bp-app-container .char-node { cursor:pointer; position:relative; display:inline-block; transition:transform 0.1s ease, filter 0.2s ease; }
+#bp-app-container .char-node { cursor:pointer; position:relative; display:inline-block; transition:transform 0.1s ease; }
 #bp-app-container .char-node:hover:not(.is-cut) { opacity:0.5; }
 #bp-app-container .char-node.is-cut { color:transparent !important; }
 #bp-app-container .char-node.is-cut::after { content:""; position:absolute; top:2px; bottom:2px; left:0; right:0; background-color:var(--top-cut-color); border-radius:1px; box-shadow:inset 0 0 1px rgba(0,0,0,0.15); }
-#bp-app-container .char-node.mask-blur { filter:blur(3.5px); opacity:0.6; }
-#bp-app-container .char-node.mask-black { background-color:#1A1A1A; color:#1A1A1A !important; border-radius:1px; }
-#bp-app-container .char-node.mask-symbol { position:relative; color:transparent !important; }
-#bp-app-container .char-node.mask-symbol::after { content:"\\00D7"; position:absolute; left:0; top:0; width:100%; height:100%; color:var(--shared-text-color); display:flex; align-items:center; justify-content:center; font-size:13px; }
 #bp-app-container #collage-area { position:relative; background-color:var(--bottom-bg); background-image:var(--bottom-bg-img); background-size:cover; background-position:center; border-top:1px solid rgba(0,0,0,0.04); flex-shrink:0; min-height:180px; min-width:180px; overflow:hidden; font-family:var(--scrap-font-family); padding-bottom:35px; }
 #bp-app-container #poster-canvas.layout-horizontal #collage-area { border-top:none; border-left:1px solid rgba(0,0,0,0.04); }
 #bp-app-container #collage-resizer { position:absolute; z-index:1000; display:flex; align-items:center; justify-content:center; }
@@ -107,17 +107,13 @@ jQuery(async () => {
 #bp-app-container #poster-bottom-meta { position:absolute; bottom:12px; left:0; width:100%; display:flex; justify-content:center; align-items:center; gap:8px; font-size:8.5px; letter-spacing:0.1em; color:var(--shared-text-color); opacity:0.45; pointer-events:none; }
 #bp-app-container #bottom-icon-slot { display:inline-flex; align-items:center; justify-content:center; }
 #bp-app-container #bottom-icon-slot img { width:11px; height:11px; object-fit:cover; vertical-align:middle; border-radius:50%; }
-
-/* 全局透明悬浮泡泡按钮 (去掉白底边框阴影) */
-#bp-bubble-btn { position:fixed; right:12px; top:50%; transform:translateY(-50%); background:transparent; border:none; box-shadow:none; z-index:9990; display:flex; justify-content:center; align-items:center; cursor:pointer; font-size:26px; line-height:1; padding:0; transition:transform 0.15s ease, opacity 0.15s ease; opacity:0.85; -webkit-tap-highlight-color: transparent; }
+#bp-bubble-btn { position:fixed; right:12px; top:50%; transform:translateY(-50%); background:transparent; border:none; box-shadow:none; z-index:9990; display:flex; justify-content:center; align-items:center; cursor:pointer; font-size:26px; line-height:1; padding:0; transition:transform 0.15s ease, opacity 0.15s ease; opacity:0.85; -webkit-tap-highlight-color:transparent; }
 #bp-bubble-btn:active { transform:translateY(-50%) scale(0.9); opacity:1; }
-
-/* 选词底部小弹窗 */
 #bp-sel-popup { position:fixed; bottom:90px; left:50%; transform:translateX(-50%); z-index:99999; background:rgba(28,28,28,0.92); color:#fff; padding:8px 16px; border-radius:20px; box-shadow:0 4px 12px rgba(0,0,0,0.2); font-size:12px; display:none; align-items:center; gap:6px; cursor:pointer; backdrop-filter:blur(6px); }
     `;
     document.head.appendChild(css);
 
-    // ========== 3. 注入 HTML 结构 ==========
+    // 3. HTML (打码功能已移除)
     var container = document.createElement('div');
     container.id = 'bp-app-container';
     container.innerHTML = `
@@ -194,15 +190,6 @@ jQuery(async () => {
     </div>
     <div id="settings-drawer">
         <div class="drawer-section">
-            <div class="section-title">一键打码</div>
-            <div class="mask-clean-group">
-                <div class="mask-clean-row" onclick="toggleMaskTarget('user')"><span class="mask-icon-symbol" id="mask-symbol-user">&#8889;</span><span>User</span></div>
-                <div class="mask-clean-row" onclick="toggleMaskTarget('char')"><span class="mask-icon-symbol" id="mask-symbol-char">&#8889;</span><span>Char</span></div>
-            </div>
-            <div style="font-size:9.5px;color:#777;margin-top:12px;margin-bottom:4px;">打码样式</div>
-            <div class="mask-type-options"><button class="action-chip active" id="mask-style-blur" onclick="setMaskStyle('blur')">高斯模糊</button><button class="action-chip" id="mask-style-black" onclick="setMaskStyle('black')">涂黑</button><button class="action-chip" id="mask-style-symbol" onclick="setMaskStyle('symbol')">符号</button></div>
-        </div>
-        <div class="drawer-section">
             <div class="section-title">时间与水印</div>
             <div class="setting-toggle-row"><span>显示时间</span><input type="checkbox" id="toggle-time-cb" checked onchange="updateBottomMeta()" style="accent-color:#000;"></div>
             <div style="display:flex;gap:4px;margin-bottom:8px;"><button class="action-chip active" id="btn-time-solar" onclick="setTimeFormat('solar')">公历</button><button class="action-chip" id="btn-time-lunar" onclick="setTimeFormat('lunar')">干支历</button></div>
@@ -224,20 +211,18 @@ jQuery(async () => {
     `;
     document.body.appendChild(container);
 
-    // 全局透明悬浮泡泡按钮
     var bubbleBtn = document.createElement('div');
     bubbleBtn.id = 'bp-bubble-btn';
     bubbleBtn.innerHTML = '&#x1FAE7;';
     bubbleBtn.onclick = function() { window.openBpApp(null); };
     document.body.appendChild(bubbleBtn);
 
-    // 选词底部弹窗
     var selPopup = document.createElement('div');
     selPopup.id = 'bp-sel-popup';
     selPopup.innerHTML = '<span style="font-size:14px;line-height:1;">&#x1FAE7;</span><span>生成拼贴诗</span>';
     document.body.appendChild(selPopup);
 
-    // ========== 4. 完整 JS 逻辑 ==========
+    // 4. JS 逻辑
     var root = container;
     var colorCategories = {
         light:[{name:'复古奶白',bg:'#F7F5F0'},{name:'冷纯白',bg:'#FFFFFF'},{name:'冷灰',bg:'#F2F2F2'},{name:'燕麦',bg:'#F0ECE1'},{name:'灰粉',bg:'#EFE5E3'},{name:'鼠尾草绿',bg:'#E5EADF'}],
@@ -255,7 +240,6 @@ jQuery(async () => {
     var settingsDrawer = document.getElementById('settings-drawer');
     var commonMask = document.getElementById('common-mask');
     var currentLayout = 'vertical', currentTimeMode = 'solar';
-    var maskUserActive = false, maskCharActive = false, currentMaskStyle = 'blur';
     var isIconVisible = true, customIconDataUrl = null;
 
     window.openBpApp = function(text) { container.style.display = 'flex'; renderArticle(text || defaultText); setTimeout(function(){ syncCollageSize(); updateBottomMeta(); }, 80); };
@@ -264,25 +248,6 @@ jQuery(async () => {
     function toggleIconDisplay(show) { isIconVisible = show; updateBottomMeta(); }
     function uploadCustomIcon(e) { var file = e.target.files[0]; if(!file) return; var reader = new FileReader(); reader.onload = function(ev) { customIconDataUrl = ev.target.result; document.getElementById('custom-icon-img').src = customIconDataUrl; document.getElementById('custom-icon-name').innerText = file.name.substring(0,10); document.getElementById('custom-icon-preview-row').style.display = 'flex'; updateBottomMeta(); }; reader.readAsDataURL(file); }
     function clearCustomIcon() { customIconDataUrl = null; document.getElementById('custom-icon-img').src = ''; document.getElementById('custom-icon-preview-row').style.display = 'none'; updateBottomMeta(); }
-
-    function toggleMaskTarget(target) {
-        if(target==='user'){maskUserActive=!maskUserActive; document.getElementById('mask-symbol-user').innerHTML = maskUserActive?'&#10022;':'&#8889;';}
-        else if(target==='char'){maskCharActive=!maskCharActive; document.getElementById('mask-symbol-char').innerHTML = maskCharActive?'&#10022;':'&#8889;';}
-        applyMaskingToText();
-    }
-    function setMaskStyle(style) { currentMaskStyle=style; document.querySelectorAll('[id^="mask-style-"]').forEach(function(b){b.classList.remove('active');}); document.getElementById('mask-style-'+style).classList.add('active'); applyMaskingToText(); }
-    function applyMaskingToText() {
-        var rawText = Array.from(textFlow.querySelectorAll('.char-node')).map(function(n){return n.dataset.char;}).join('');
-        var charNames = rawText.match(/莫诺马赫|林越安|高杉|桂/g)||["莫诺马赫"]; var userNames = rawText.match(/我|你|他|她/g)||["他","她"];
-        try { var ctx = SillyTavern.getContext(); if(ctx.name2) charNames.push(ctx.name2); if(ctx.name1) userNames.push(ctx.name1); } catch(e){}
-        var charSet = new Set(charNames), userSet = new Set(userNames);
-        var nodes = Array.from(textFlow.querySelectorAll('.char-node'));
-        nodes.forEach(function(n){n.classList.remove('mask-blur','mask-black','mask-symbol');});
-        nodes.forEach(function(node,i){ var char=node.dataset.char;
-            if(maskCharActive){charSet.forEach(function(word){var len=word.length;if(rawText.substr(i,len)===word){for(var k=0;k<len;k++){if(nodes[i+k])nodes[i+k].classList.add('mask-'+currentMaskStyle);}}});}
-            if(maskUserActive&&userSet.has(char)){node.classList.add('mask-'+currentMaskStyle);}
-        });
-    }
 
     function getGanZhiDate(d){var tG=["甲","乙","丙","丁","戊","己","庚","辛","壬","癸"],dZ=["子","丑","寅","卯","辰","巳","午","未","申","酉","戌","亥"],y=d.getFullYear(),o=(y-4)%60;return tG[o%10]+dZ[o%12]+'年 '+tG[d.getMonth()%10]+dZ[(d.getMonth()+2)%12]+'月 '+tG[d.getDate()%10]+dZ[(d.getDate()+4)%12]+'日';}
     function setTimeFormat(m){currentTimeMode=m;document.getElementById('btn-time-solar').classList.toggle('active',m==='solar');document.getElementById('btn-time-lunar').classList.toggle('active',m==='lunar');updateBottomMeta();}
@@ -327,16 +292,28 @@ jQuery(async () => {
     function switchLayout(type){currentLayout=type;document.getElementById('btn-layout-vertical').classList.toggle('active',type==='vertical');document.getElementById('btn-layout-horizontal').classList.toggle('active',type==='horizontal');if(type==='horizontal'){posterCanvas.classList.add('layout-horizontal');collageArea.style.height=sourceArea.offsetHeight+'px';collageArea.style.width='340px';}else{posterCanvas.classList.remove('layout-horizontal');collageArea.style.width='100%';collageArea.style.height=sourceArea.offsetHeight+'px';}}
     function initCollageResizer(){var isR=false,sX,sY,sW,sH;var onS=function(e){isR=true;var p=e.type.includes('touch')?e.touches[0]:e;sX=p.clientX;sY=p.clientY;sW=collageArea.offsetWidth;sH=collageArea.offsetHeight;e.stopPropagation();};var onM=function(e){if(!isR)return;var p=e.type.includes('touch')?e.touches[0]:e;if(currentLayout==='vertical'){collageArea.style.height=Math.max(140,sH+(p.clientY-sY))+'px';}else{collageArea.style.width=Math.max(140,sW+(p.clientX-sX))+'px';collageArea.style.height=sourceArea.offsetHeight+'px';}};var onE=function(){isR=false;};resizer.addEventListener('mousedown',onS);window.addEventListener('mousemove',onM);window.addEventListener('mouseup',onE);resizer.addEventListener('touchstart',onS,{passive:true});window.addEventListener('touchmove',onM,{passive:true});window.addEventListener('touchend',onE);}
 
-    function renderArticle(text){textFlow.innerHTML='';collageArea.querySelectorAll('.scrap-word').forEach(function(e){e.remove();});text.split('').forEach(function(char,idx){var span=document.createElement('span');span.className='char-node';span.textContent=char;span.dataset.char=char;span.dataset.idx=idx;span.onclick=function(){handleCharClick(span);};textFlow.appendChild(span);});setTimeout(function(){if(currentLayout==='horizontal')collageArea.style.height=sourceArea.offsetHeight+'px';applyMaskingToText();},30);}
+    function renderArticle(text){textFlow.innerHTML='';collageArea.querySelectorAll('.scrap-word').forEach(function(e){e.remove();});text.split('').forEach(function(char,idx){var span=document.createElement('span');span.className='char-node';span.textContent=char;span.dataset.char=char;span.dataset.idx=idx;span.onclick=function(){handleCharClick(span);};textFlow.appendChild(span);});setTimeout(function(){if(currentLayout==='horizontal')collageArea.style.height=sourceArea.offsetHeight+'px';},30);}
     function handleCharClick(span){var idx=span.dataset.idx;if(span.classList.contains('is-cut')){span.classList.remove('is-cut');var sc=collageArea.querySelector('.scrap-word[data-idx="'+idx+'"]');if(sc)sc.remove();return;}span.classList.add('is-cut');spawnScrap(span.dataset.char,idx);}
     function spawnScrap(char,idx){var scrap=document.createElement('div');scrap.className='scrap-word';scrap.textContent=char;scrap.dataset.idx=idx;var rect=collageArea.getBoundingClientRect();scrap.style.left=(Math.random()*(rect.width-50)+20)+'px';scrap.style.top=(Math.random()*(rect.height-60)+20)+'px';bindDrag(scrap);scrap.ondblclick=function(){var t=textFlow.querySelector('.char-node[data-idx="'+idx+'"]');if(t)t.classList.remove('is-cut');scrap.remove();};collageArea.appendChild(scrap);}
     function bindDrag(el){var sX,sY,oX,oY,isDragging=false;var onS=function(e){isDragging=true;var p=e.type.includes('touch')?e.touches[0]:e;sX=p.clientX;sY=p.clientY;oX=parseFloat(el.style.left)||0;oY=parseFloat(el.style.top)||0;el.style.zIndex=1000;};var onM=function(e){if(!isDragging)return;var p=e.type.includes('touch')?e.touches[0]:e;el.style.left=(oX+(p.clientX-sX))+'px';el.style.top=(oY+(p.clientY-sY))+'px';};var onE=function(){isDragging=false;el.style.zIndex=10;};el.addEventListener('mousedown',onS);window.addEventListener('mousemove',onM);window.addEventListener('mouseup',onE);el.addEventListener('touchstart',onS,{passive:true});window.addEventListener('touchmove',onM,{passive:true});window.addEventListener('touchend',onE);}
     function uploadTopBg(e){var f=e.target.files[0];if(!f)return;var r=new FileReader();r.onload=function(ev){sourceArea.style.backgroundImage='url('+ev.target.result+')';};r.readAsDataURL(f);}
     function uploadBottomBg(e){var f=e.target.files[0];if(!f)return;var r=new FileReader();r.onload=function(ev){collageArea.style.backgroundImage='url('+ev.target.result+')';};r.readAsDataURL(f);}
     function resetCuts(){textFlow.querySelectorAll('.char-node.is-cut').forEach(function(n){n.classList.remove('is-cut');});collageArea.querySelectorAll('.scrap-word').forEach(function(n){n.remove();});}
-    function exportPosterImage(){closeAllDrawers();resizer.style.display='none';html2canvas(posterCanvas,{scale:4,useCORS:true,allowTaint:true,backgroundColor:null,logging:false}).then(function(canvas){resizer.style.display='flex';var a=document.createElement('a');a.download='Collage_Poem_HD_'+Date.now()+'.png';a.href=canvas.toDataURL('image/png',1.0);a.click();});}
 
-    // 暴露所有内联 onclick 需要的函数
+    function exportPosterImage(){
+        if(typeof html2canvas === 'undefined'){alert('截图组件尚未加载完成，请稍后再试。');return;}
+        closeAllDrawers();resizer.style.display='none';
+        html2canvas(posterCanvas,{scale:4,useCORS:true,allowTaint:true,backgroundColor:null,logging:false}).then(function(canvas){
+            resizer.style.display='flex';
+            canvas.toBlob(function(blob){
+                var url=URL.createObjectURL(blob);
+                var a=document.createElement('a');a.href=url;a.download='Collage_Poem_HD_'+Date.now()+'.png';
+                document.body.appendChild(a);a.click();document.body.removeChild(a);
+                setTimeout(function(){URL.revokeObjectURL(url);},3000);
+            },'image/png');
+        }).catch(function(err){resizer.style.display='flex';alert('保存失败: '+err.message);});
+    }
+
     Object.assign(window, {
         toggleDrawer, toggleSettingsDrawer, closeAllDrawers, toggleIconDisplay, uploadCustomIcon, clearCustomIcon,
         setTopBg, setTopCustomBg, setBottomBg, setBottomCustomBg, setTextColor,
@@ -344,17 +321,16 @@ jQuery(async () => {
         setZoneFont, loadCustomFont, addFontItemToList, setTopFontSize, setScrapFontSize,
         syncCollageSize, switchLayout, renderArticle, handleCharClick, spawnScrap, bindDrag,
         uploadTopBg, uploadBottomBg, resetCuts, exportPosterImage,
-        arrangeStrictGrid, toggleMaskTarget, setMaskStyle, applyMaskingToText,
-        getGanZhiDate, setTimeFormat, updateBottomMeta
+        arrangeStrictGrid, getGanZhiDate, setTimeFormat, updateBottomMeta
     });
 
-    // ========== 5. 初始化 ==========
+    // 5. 初始化
     initColorPaletteUI('topPaletteContainer', setTopBg);
     initColorPaletteUI('bottomPaletteContainer', setBottomBg);
     initTextColorPaletteUI();
     initCollageResizer();
 
-    // ========== 6. 在魔法棒面板挂载 ==========
+    // 6. 魔法棒面板
     var mountExt = function() {
         var panel = document.getElementById('extensions_settings');
         if (panel && !document.getElementById('bp-ext-item')) {
@@ -368,7 +344,7 @@ jQuery(async () => {
     setTimeout(mountExt, 1500);
     setInterval(mountExt, 5000);
 
-    // ========== 7. 选词弹窗 ==========
+    // 7. 选词弹窗
     var selectedText = '';
     document.addEventListener('selectionchange', function() {
         var sel = window.getSelection();
@@ -386,7 +362,7 @@ jQuery(async () => {
         window.openBpApp(selectedText);
     };
 
-    // 绑定 settings.html 中的按钮点击事件
+    // 8. settings.html 按钮兼容
     $(document).on('click', '#bp_open_studio_btn', function() {
         window.openBpApp(null);
     });
