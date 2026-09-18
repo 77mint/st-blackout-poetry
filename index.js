@@ -1,4 +1,4 @@
-// 剪报拼贴诗 - SillyTavern Extension
+ // 剪报拼贴诗 - SillyTavern Extension
 
 jQuery(async () => {
 
