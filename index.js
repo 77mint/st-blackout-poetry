@@ -1,8 +1,8 @@
- // 剪报拼贴诗 - SillyTavern Extension
+// 剪报拼贴诗 - SillyTavern Extension
 
 jQuery(async () => {
 
-        if (!window.html2canvas) {
+    if (!window.html2canvas) {
         await new Promise(function(resolve, reject) {
             var s = document.createElement('script');
             try {
@@ -106,6 +106,7 @@ jQuery(async () => {
 #bp-app-container #poster-canvas.layout-horizontal #collage-resizer::after { content:""; width:3px; height:32px; background:rgba(0,0,0,0.2); border-radius:2px; }
 #bp-app-container .scrap-word { position:absolute; background-color:var(--scrap-bg); color:var(--shared-text-color); padding:3px 6px; font-size:var(--scrap-font-size); line-height:1; border-radius:1px; cursor:grab; box-shadow:1px 2px 5px rgba(0,0,0,0.15); font-family:inherit; touch-action:none; z-index:10; display:inline-flex; justify-content:center; align-items:center; width:26px; height:30px; }
 #bp-app-container .scrap-word:active { cursor:grabbing; box-shadow:2px 6px 14px rgba(0,0,0,0.25); z-index:100; }
+#bp-app-container .bp-welcome { position:absolute; top:50%; left:50%; transform:translate(-50%,-50%) rotate(-3deg); font-size:13px; color:var(--shared-text-color); opacity:0.35; text-align:center; letter-spacing:0.08em; line-height:1.8; pointer-events:none; white-space:nowrap; }
 #bp-app-container .texture-layer { position:absolute; top:0; left:0; width:100%; height:100%; pointer-events:none; mix-blend-mode:overlay; z-index:800; }
 #bp-app-container #top-texture { opacity:var(--top-grain-opacity); }
 #bp-app-container #bottom-texture { opacity:var(--bottom-grain-opacity); }
@@ -232,7 +233,7 @@ jQuery(async () => {
         vintage:[{name:'复古砖红',bg:'#6B2D2B'},{name:'中古墨绿',bg:'#334839'},{name:'油画深蓝',bg:'#203A4C'},{name:'羊皮纸',bg:'#D9CBB7'},{name:'焦糖棕',bg:'#6B442A'},{name:'姜黄',bg:'#C99E5C'}],
         dark:[{name:'纯黑',bg:'#111111'},{name:'碳墨黑',bg:'#1C1E21'},{name:'沥青灰',bg:'#2B2B2B'},{name:'深黛蓝',bg:'#0F1A24'},{name:'极夜紫',bg:'#1E1524'},{name:'浓缩咖啡',bg:'#241B18'}]
     };
-    var defaultText = "\u201C\u6559\u201D\u3002\u8FD9\u4E2A\u5B57\u5728\u4ED6\u548C\u83AB\u8BFA\u9A6C\u8D6B\u4E4B\u95F4\u62E5\u6709\u6700\u6F2B\u957F\u7684\u4F7F\u7528\u5386\u53F2\u3002\u6559\u5979\u7528\u7B77\u5B50\uFF0C\u6559\u5979\u7CFB\u978B\u5E26\uFF0C\u6559\u5979\u80CC\u5510\u8BD7\u80CC\u5230\u7B2C\u4E09\u53E5\u5C31\u8DD1\u6389\uFF0C\u6559\u5979\u5728\u6C34\u91CC\u4E0D\u8981\u95ED\u773C\u775B\u3002\u4E8C\u5341\u4E94\u5E74\u6765\u4ED6\u6559\u7ED9\u5979\u7684\u4E00\u5207\u90FD\u5EFA\u7ACB\u5728\u540C\u4E00\u4E2A\u9ED8\u8BA4\u4E4B\u4E0A\uFF0C\u4ED6\u77E5\u9053\u6B63\u786E\u7B54\u6848\uFF0C\u800C\u5979\u4FE1\u4ED6\u3002\u6B64\u523B\u8FD9\u4E2A\u9ED8\u8BA4\u4ECD\u7136\u6210\u7ACB\u3002\u53EA\u662F\u201C\u6B63\u786E\u7B54\u6848\u201D\u5DF2\u7ECF\u5728\u5589\u5499\u91CC\u8150\u8680\u6210\u4E86\u4E00\u5757\u70EB\u624B\u7684\u94C1\uFF0C\u4ED6\u5373\u5C06\u628A\u5B83\u5305\u4E0A\u7CD6\u8863\u9012\u8FC7\u53BB\uFF0C\u800C\u5979\u4F1A\u5F20\u5F00\u5634\uFF0C\u548C\u541E\u4E0B\u6B64\u524D\u6BCF\u4E00\u9897\u4ED6\u9012\u8FC7\u53BB\u7684\u7CD6\u4E00\u6837\uFF0C\u5168\u7136\u5730\uFF0C\u6BEB\u4E0D\u8BBE\u9632\u5730\uFF0C\u751A\u81F3\u5E26\u7740\u671F\u5F85\u5730\uFF0C\u541E\u4E0B\u53BB\u3002";
+    var defaultText = "胡琴咿咿呀呀拉着，在万盏灯的夜晚，欢喜是别人的，她只拣些零碎的字，迎面来的风是凉的，来来去去的人影里，到底没有一个是为她停下的；薄薄的月光铺在旧报纸上，荷花开了又谢，的确没有什么长久；拼拼凑凑，贴在墙上的诗笺边角卷了起来，诗里的话她早已忘了，小小的一枚书签却还夹着，插在书缝里，件件都是旧事，你翻翻罢，翻到了是你的缘分，翻不到也是应当的。";
 
     var textFlow = document.getElementById('textFlow');
     var collageArea = document.getElementById('collage-area');
@@ -245,7 +246,23 @@ jQuery(async () => {
     var currentLayout = 'vertical', currentTimeMode = 'solar';
     var isIconVisible = true, customIconDataUrl = null;
 
-    window.openBpApp = function(text) { container.style.display = 'flex'; renderArticle(text || defaultText); setTimeout(function(){ syncCollageSize(); updateBottomMeta(); }, 80); };
+    window.openBpApp = function(text) {
+        container.style.display = 'flex';
+        renderArticle(text || defaultText);
+        setTimeout(function(){
+            syncCollageSize();
+            updateBottomMeta();
+            if (!text) {
+                if (!collageArea.querySelector('.bp-welcome')) {
+                    var w = document.createElement('div');
+                    w.className = 'bp-welcome';
+                    w.innerText = '欢迎使用薄荷的拼贴诗小插件';
+                    collageArea.appendChild(w);
+                }
+                collageArea.style.height = '160px';
+            }
+        }, 80);
+    };
     window.closeBpApp = function() { container.style.display = 'none'; closeAllDrawers(); };
 
     function toggleIconDisplay(show) { isIconVisible = show; updateBottomMeta(); }
@@ -295,8 +312,8 @@ jQuery(async () => {
     function switchLayout(type){currentLayout=type;document.getElementById('btn-layout-vertical').classList.toggle('active',type==='vertical');document.getElementById('btn-layout-horizontal').classList.toggle('active',type==='horizontal');if(type==='horizontal'){posterCanvas.classList.add('layout-horizontal');collageArea.style.height=sourceArea.offsetHeight+'px';collageArea.style.width='340px';}else{posterCanvas.classList.remove('layout-horizontal');collageArea.style.width='100%';collageArea.style.height=sourceArea.offsetHeight+'px';}}
     function initCollageResizer(){var isR=false,sX,sY,sW,sH;var onS=function(e){isR=true;var p=e.type.includes('touch')?e.touches[0]:e;sX=p.clientX;sY=p.clientY;sW=collageArea.offsetWidth;sH=collageArea.offsetHeight;e.stopPropagation();};var onM=function(e){if(!isR)return;var p=e.type.includes('touch')?e.touches[0]:e;if(currentLayout==='vertical'){collageArea.style.height=Math.max(140,sH+(p.clientY-sY))+'px';}else{collageArea.style.width=Math.max(140,sW+(p.clientX-sX))+'px';collageArea.style.height=sourceArea.offsetHeight+'px';}};var onE=function(){isR=false;};resizer.addEventListener('mousedown',onS);window.addEventListener('mousemove',onM);window.addEventListener('mouseup',onE);resizer.addEventListener('touchstart',onS,{passive:true});window.addEventListener('touchmove',onM,{passive:true});window.addEventListener('touchend',onE);}
 
-    function renderArticle(text){textFlow.innerHTML='';collageArea.querySelectorAll('.scrap-word').forEach(function(e){e.remove();});text.split('').forEach(function(char,idx){var span=document.createElement('span');span.className='char-node';span.textContent=char;span.dataset.char=char;span.dataset.idx=idx;span.onclick=function(){handleCharClick(span);};textFlow.appendChild(span);});setTimeout(function(){if(currentLayout==='horizontal')collageArea.style.height=sourceArea.offsetHeight+'px';},30);}
-    function handleCharClick(span){var idx=span.dataset.idx;if(span.classList.contains('is-cut')){span.classList.remove('is-cut');var sc=collageArea.querySelector('.scrap-word[data-idx="'+idx+'"]');if(sc)sc.remove();return;}span.classList.add('is-cut');spawnScrap(span.dataset.char,idx);}
+    function renderArticle(text){textFlow.innerHTML='';collageArea.querySelectorAll('.scrap-word').forEach(function(e){e.remove();});var wc=collageArea.querySelector('.bp-welcome');if(wc)wc.remove();text.split('').forEach(function(char,idx){var span=document.createElement('span');span.className='char-node';span.textContent=char;span.dataset.char=char;span.dataset.idx=idx;span.onclick=function(){handleCharClick(span);};textFlow.appendChild(span);});setTimeout(function(){if(currentLayout==='horizontal')collageArea.style.height=sourceArea.offsetHeight+'px';},30);}
+    function handleCharClick(span){var idx=span.dataset.idx;if(span.classList.contains('is-cut')){span.classList.remove('is-cut');var sc=collageArea.querySelector('.scrap-word[data-idx="'+idx+'"]');if(sc)sc.remove();return;}span.classList.add('is-cut');var wc=collageArea.querySelector('.bp-welcome');if(wc)wc.remove();spawnScrap(span.dataset.char,idx);}
     function spawnScrap(char,idx){var scrap=document.createElement('div');scrap.className='scrap-word';scrap.textContent=char;scrap.dataset.idx=idx;var rect=collageArea.getBoundingClientRect();scrap.style.left=(Math.random()*(rect.width-50)+20)+'px';scrap.style.top=(Math.random()*(rect.height-60)+20)+'px';bindDrag(scrap);scrap.ondblclick=function(){var t=textFlow.querySelector('.char-node[data-idx="'+idx+'"]');if(t)t.classList.remove('is-cut');scrap.remove();};collageArea.appendChild(scrap);}
     function bindDrag(el){var sX,sY,oX,oY,isDragging=false;var onS=function(e){isDragging=true;var p=e.type.includes('touch')?e.touches[0]:e;sX=p.clientX;sY=p.clientY;oX=parseFloat(el.style.left)||0;oY=parseFloat(el.style.top)||0;el.style.zIndex=1000;};var onM=function(e){if(!isDragging)return;var p=e.type.includes('touch')?e.touches[0]:e;el.style.left=(oX+(p.clientX-sX))+'px';el.style.top=(oY+(p.clientY-sY))+'px';};var onE=function(){isDragging=false;el.style.zIndex=10;};el.addEventListener('mousedown',onS);window.addEventListener('mousemove',onM);window.addEventListener('mouseup',onE);el.addEventListener('touchstart',onS,{passive:true});window.addEventListener('touchmove',onM,{passive:true});window.addEventListener('touchend',onE);}
     function uploadTopBg(e){var f=e.target.files[0];if(!f)return;var r=new FileReader();r.onload=function(ev){sourceArea.style.backgroundImage='url('+ev.target.result+')';};r.readAsDataURL(f);}
@@ -309,7 +326,7 @@ jQuery(async () => {
         resizer.style.display='none';
         setTimeout(function(){
             try{
-                html2canvas(posterCanvas,{scale:2,useCORS:true,allowTaint:true,backgroundColor:null,logging:false,windowWidth:posterCanvas.scrollWidth,windowHeight:posterCanvas.scrollHeight}).then(function(canvas){
+                html2canvas(posterCanvas,{scale:1,useCORS:true,allowTaint:true,backgroundColor:null,logging:false,windowWidth:posterCanvas.scrollWidth,windowHeight:posterCanvas.scrollHeight}).then(function(canvas){
                     resizer.style.display='flex';
                     try{
                         var link=document.createElement('a');link.download='BlackoutPoetry_'+Date.now()+'.png';link.href=canvas.toDataURL('image/png');link.click();
