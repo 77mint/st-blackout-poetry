@@ -2,7 +2,6 @@
 
 jQuery(async () => {
 
-    // 1. 加载依赖
     if (!window.html2canvas) {
         await new Promise(function(resolve, reject) {
             var s = document.createElement('script');
@@ -17,7 +16,6 @@ jQuery(async () => {
     fl.rel = 'stylesheet';
     document.head.appendChild(fl);
 
-    // 2. CSS
     var css = document.createElement('style');
     css.textContent = `
 #bp-app-container {
@@ -31,11 +29,7 @@ jQuery(async () => {
     font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;
 }
 #bp-app-container, #bp-app-container *, #bp-app-container *::before, #bp-app-container *::after { box-sizing:border-box; margin:0; padding:0; user-select:none; -webkit-user-select:none; }
-#bp-app-container input[type="file"] { user-select:auto !important; -webkit-user-select:auto !important; pointer-events:auto !important; }
-#bp-app-container input[type="color"] { user-select:auto !important; -webkit-user-select:auto !important; }
-#bp-app-container input[type="text"] { user-select:auto !important; -webkit-user-select:auto !important; }
-#bp-app-container input[type="checkbox"] { user-select:auto !important; -webkit-user-select:auto !important; }
-#bp-app-container input[type="range"] { user-select:auto !important; -webkit-user-select:auto !important; }
+#bp-app-container input[type="file"], #bp-app-container input[type="color"], #bp-app-container input[type="text"], #bp-app-container input[type="checkbox"], #bp-app-container input[type="range"], #bp-app-container select { user-select:auto !important; -webkit-user-select:auto !important; pointer-events:auto !important; -webkit-tap-highlight-color:transparent; }
 #bp-app-container #top-left-bar { position:fixed; top:20px; left:20px; display:flex; align-items:center; gap:8px; z-index:2005; }
 #bp-app-container #top-right-bar { position:fixed; top:20px; right:20px; display:flex; align-items:center; gap:8px; z-index:2005; }
 #bp-app-container .icon-btn { width:36px; height:36px; display:flex; justify-content:center; align-items:center; cursor:pointer; background:rgba(255,255,255,0.92); border:1px solid rgba(0,0,0,0.08); border-radius:4px; backdrop-filter:blur(8px); box-shadow:0 4px 15px rgba(0,0,0,0.04); transition:all 0.2s ease; }
@@ -113,7 +107,6 @@ jQuery(async () => {
     `;
     document.head.appendChild(css);
 
-    // 3. HTML (打码功能已移除)
     var container = document.createElement('div');
     container.id = 'bp-app-container';
     container.innerHTML = `
@@ -222,7 +215,6 @@ jQuery(async () => {
     selPopup.innerHTML = '<span style="font-size:14px;line-height:1;">&#x1FAE7;</span><span>生成拼贴诗</span>';
     document.body.appendChild(selPopup);
 
-    // 4. JS 逻辑
     var root = container;
     var colorCategories = {
         light:[{name:'复古奶白',bg:'#F7F5F0'},{name:'冷纯白',bg:'#FFFFFF'},{name:'冷灰',bg:'#F2F2F2'},{name:'燕麦',bg:'#F0ECE1'},{name:'灰粉',bg:'#EFE5E3'},{name:'鼠尾草绿',bg:'#E5EADF'}],
@@ -283,7 +275,7 @@ jQuery(async () => {
     function setBottomGrainOpacity(v){root.style.setProperty('--bottom-grain-opacity',v/100);}
 
     function setZoneFont(zone,fontFamily,element,fontName){var listId=zone==='top'?'topFontList':'bottomFontList';var labelId=zone==='top'?'top-font-name-label':'bottom-font-name-label';document.querySelectorAll('#'+listId+' .font-compact-item').forEach(function(i){i.classList.remove('selected');});if(element)element.classList.add('selected');document.getElementById(labelId).innerText=fontName;root.style.setProperty(zone==='top'?'--top-font-family':'--scrap-font-family',fontFamily);setTimeout(function(){if(currentLayout==='horizontal')collageArea.style.height=sourceArea.offsetHeight+'px';},30);}
-    function loadCustomFont(e){var file=e.target.files[0];if(!file)return;var fontName="UserFont_"+Date.now(),cleanName=file.name.replace(/\.[^/.]+$/,"").substring(0,8);var reader=new FileReader();reader.onload=async function(ev){try{var nf=new FontFace(fontName,ev.target.result);await nf.load();document.fonts.add(nf);addFontItemToList('top',fontName,cleanName);addFontItemToList('bottom',fontName,cleanName);alert('字体 ['+cleanName+'] 导入成功!');}catch(err){alert("字体解析失败!");}};reader.readAsArrayBuffer(file);}
+    function loadCustomFont(e){var file=e.target.files[0];if(!file)return;var fontName="UserFont_"+Date.now(),cleanName=file.name.replace(/\.[^/.]+$/,"").substring(0,8);var reader=new FileReader();reader.onload=async function(ev){try{var nf=new FontFace(fontName,ev.target.result);await nf.load();document.fonts.add(nf);addFontItemToList('top',fontName,cleanName);addFontItemToList('bottom',fontName,cleanName);toastr.success('字体 ['+cleanName+'] 导入成功');}catch(err){toastr.error("字体解析失败");}};reader.readAsArrayBuffer(file);}
     function addFontItemToList(zone,fontName,cleanName){var c=document.getElementById(zone==='top'?'topFontList':'bottomFontList');var item=document.createElement('div');item.className='font-compact-item';item.innerHTML='<div class="font-name-col">'+cleanName+'</div><div class="font-preview-col" style="font-family:\''+fontName+'\',serif;">恨水虚席</div>';item.onclick=function(){setZoneFont(zone,"'"+fontName+"', serif",this,cleanName);};c.insertBefore(item,c.firstChild);}
     function setTopFontSize(v){root.style.setProperty('--top-font-size',v+'px');setTimeout(function(){if(currentLayout==='horizontal')collageArea.style.height=sourceArea.offsetHeight+'px';},30);}
     function setScrapFontSize(v){root.style.setProperty('--scrap-font-size',v+'px');}
@@ -301,17 +293,22 @@ jQuery(async () => {
     function resetCuts(){textFlow.querySelectorAll('.char-node.is-cut').forEach(function(n){n.classList.remove('is-cut');});collageArea.querySelectorAll('.scrap-word').forEach(function(n){n.remove();});}
 
     function exportPosterImage(){
-        if(typeof html2canvas === 'undefined'){alert('截图组件尚未加载完成，请稍后再试。');return;}
-        closeAllDrawers();resizer.style.display='none';
-        html2canvas(posterCanvas,{scale:4,useCORS:true,allowTaint:true,backgroundColor:null,logging:false}).then(function(canvas){
-            resizer.style.display='flex';
-            canvas.toBlob(function(blob){
-                var url=URL.createObjectURL(blob);
-                var a=document.createElement('a');a.href=url;a.download='Collage_Poem_HD_'+Date.now()+'.png';
-                document.body.appendChild(a);a.click();document.body.removeChild(a);
-                setTimeout(function(){URL.revokeObjectURL(url);},3000);
-            },'image/png');
-        }).catch(function(err){resizer.style.display='flex';alert('保存失败: '+err.message);});
+        if(typeof html2canvas==='undefined'){toastr.warning('截图组件加载中，请稍后再试');return;}
+        closeAllDrawers();
+        resizer.style.display='none';
+        setTimeout(function(){
+            try{
+                html2canvas(posterCanvas,{scale:2,useCORS:true,allowTaint:true,backgroundColor:null,logging:false,windowWidth:posterCanvas.scrollWidth,windowHeight:posterCanvas.scrollHeight}).then(function(canvas){
+                    resizer.style.display='flex';
+                    try{
+                        var link=document.createElement('a');link.download='BlackoutPoetry_'+Date.now()+'.png';link.href=canvas.toDataURL('image/png');link.click();
+                        toastr.success('保存成功');
+                    }catch(e2){
+                        canvas.toBlob(function(blob){var url=URL.createObjectURL(blob);var a=document.createElement('a');a.href=url;a.download='BlackoutPoetry_'+Date.now()+'.png';a.click();setTimeout(function(){URL.revokeObjectURL(url);},3000);toastr.success('保存成功');},'image/png');
+                    }
+                }).catch(function(err){resizer.style.display='flex';toastr.error('保存失败');});
+            }catch(e){resizer.style.display='flex';toastr.error('截图出错');}
+        },150);
     }
 
     Object.assign(window, {
@@ -324,13 +321,11 @@ jQuery(async () => {
         arrangeStrictGrid, getGanZhiDate, setTimeFormat, updateBottomMeta
     });
 
-    // 5. 初始化
     initColorPaletteUI('topPaletteContainer', setTopBg);
     initColorPaletteUI('bottomPaletteContainer', setBottomBg);
     initTextColorPaletteUI();
     initCollageResizer();
 
-    // 6. 魔法棒面板
     var mountExt = function() {
         var panel = document.getElementById('extensions_settings');
         if (panel && !document.getElementById('bp-ext-item')) {
@@ -344,7 +339,6 @@ jQuery(async () => {
     setTimeout(mountExt, 1500);
     setInterval(mountExt, 5000);
 
-    // 7. 选词弹窗
     var selectedText = '';
     document.addEventListener('selectionchange', function() {
         var sel = window.getSelection();
@@ -362,7 +356,6 @@ jQuery(async () => {
         window.openBpApp(selectedText);
     };
 
-    // 8. settings.html 按钮兼容
     $(document).on('click', '#bp_open_studio_btn', function() {
         window.openBpApp(null);
     });
