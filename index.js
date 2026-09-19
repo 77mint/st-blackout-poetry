@@ -71,6 +71,8 @@ jQuery(async () => {
 #bp-app-container .action-chip:hover, #bp-app-container .action-chip.active { background:#1C1C1C; color:#FFF; }
 #bp-app-container .file-wrapper { position:relative; overflow:visible; display:block; margin-top:4px; }
 #bp-app-container .file-wrapper input[type="file"] { position:absolute; left:0; top:0; opacity:0; cursor:pointer; width:100%; height:100%; z-index:10; }
+#bp-app-container label.file-label { display:block; cursor:pointer; -webkit-tap-highlight-color:transparent; }
+#bp-app-container label.file-label input[type="file"] { display:none; }
 #bp-app-container .slider-row { display:flex; align-items:center; justify-content:space-between; margin-top:6px; }
 #bp-app-container .slider-row span { color:#777; font-size:9.5px; }
 #bp-app-container .slider-row input[type="range"] { width:150px; accent-color:#000; }
@@ -148,7 +150,7 @@ jQuery(async () => {
             <div class="section-title">1. 壁纸 (原文区)</div>
             <div id="topPaletteContainer"></div>
             <div class="color-picker-wrapper"><input type="color" class="color-picker-input" id="topColorPicker" value="#F7F5F0" onchange="setTopCustomBg(this.value)"><span style="font-size:10px;color:#555;">自定义取色调色盘</span></div>
-            <div class="file-wrapper"><div class="action-chip">上传壁纸图片</div><input type="file" accept="image/*" onchange="uploadTopBg(event)"></div>
+            <label class="action-chip file-label">上传壁纸图片<input type="file" accept="image/*" onchange="uploadTopBg(event)"></label>
             <div style="font-size:9px;color:#888;margin-top:8px;margin-bottom:3px;">壁纸纹理质感：</div>
             <div class="grid-buttons"><button class="action-chip active" id="top-tex-none" onclick="setTopTexture('none')">无</button><button class="action-chip" id="top-tex-frosted" onclick="setTopTexture('frosted')">细磨砂</button><button class="action-chip" id="top-tex-noise" onclick="setTopTexture('noise')">胶片噪点</button><button class="action-chip" id="top-tex-paper" onclick="setTopTexture('paper')">粗糙纸纹</button><button class="action-chip" id="top-tex-fabric" onclick="setTopTexture('fabric')">复古布纹</button><button class="action-chip" id="top-tex-scratch" onclick="setTopTexture('scratch')">素描排线</button></div>
             <div class="slider-row"><span>纹理浓度</span><input type="range" min="0" max="70" value="0" id="top-grain-slider" oninput="setTopGrainOpacity(this.value)"></div>
@@ -157,7 +159,7 @@ jQuery(async () => {
             <div class="section-title">2. 底图 (拼贴区)</div>
             <div id="bottomPaletteContainer"></div>
             <div class="color-picker-wrapper"><input type="color" class="color-picker-input" id="botColorPicker" value="#F7F5F0" onchange="setBottomCustomBg(this.value)"><span style="font-size:10px;color:#555;">自定义取色调色盘</span></div>
-            <div class="file-wrapper"><div class="action-chip">上传底图图片</div><input type="file" accept="image/*" onchange="uploadBottomBg(event)"></div>
+            <label class="action-chip file-label">上传底图图片<input type="file" accept="image/*" onchange="uploadBottomBg(event)"></label>
             <button class="action-chip" style="width:100%;margin-top:6px;" onclick="syncCollageSize()">使拼贴区与原文区等大</button>
             <div style="font-size:9px;color:#888;margin-top:8px;margin-bottom:3px;">底图纹理质感：</div>
             <div class="grid-buttons"><button class="action-chip active" id="bot-tex-none" onclick="setBottomTexture('none')">无</button><button class="action-chip" id="bot-tex-frosted" onclick="setBottomTexture('frosted')">细磨砂</button><button class="action-chip" id="bot-tex-noise" onclick="setBottomTexture('noise')">胶片噪点</button><button class="action-chip" id="bot-tex-paper" onclick="setBottomTexture('paper')">粗糙纸纹</button><button class="action-chip" id="bot-tex-fabric" onclick="setBottomTexture('fabric')">复古布纹</button><button class="action-chip" id="bot-tex-scratch" onclick="setBottomTexture('scratch')">素描排线</button></div>
@@ -168,7 +170,7 @@ jQuery(async () => {
             <div style="font-size:10px;font-weight:600;color:#333;margin-bottom:4px;">文字颜色：</div>
             <div id="textColorPaletteContainer"></div>
             <div class="color-picker-wrapper" style="margin-bottom:10px;"><input type="color" class="color-picker-input" id="textColorPicker" value="#1A1A1A" onchange="setTextColor(this.value)"><span style="font-size:10px;color:#555;">自定义文字调色盘</span></div>
-            <div class="file-wrapper" style="margin-bottom:8px;"><div class="action-chip" style="background:#EBEBEB;font-weight:600;">导入本地 .TTF / .OTF 字体文件</div><input type="file" accept=".ttf,.otf,.woff,.woff2" onchange="loadCustomFont(event)"></div>
+            <label class="action-chip file-label" style="background:#EBEBEB;font-weight:600;margin-bottom:8px;">导入本地 .TTF / .OTF 字体文件<input type="file" accept=".ttf,.otf,.woff,.woff2" onchange="loadCustomFont(event)"></label>
             <div class="sub-panel-box"><div class="sub-panel-title"><span>原文区字体</span><span id="top-font-name-label" style="font-size:9px;color:#999;font-weight:normal;">思源宋体</span></div>
                 <div class="font-compact-list" id="topFontList">
                     <div class="font-compact-item selected" onclick="setZoneFont('top','Noto Serif SC, serif',this,'思源宋体')"><div class="font-name-col">思源宋体</div><div class="font-preview-col" style="font-family:'Noto Serif SC',serif;">恨水虚席</div></div>
@@ -206,7 +208,7 @@ jQuery(async () => {
             <div class="section-title">标识与图标</div>
             <div class="setting-toggle-row"><span>显示图标</span><input type="checkbox" id="toggle-icon-cb" checked onchange="toggleIconDisplay(this.checked)" style="accent-color:#000;"></div>
             <div style="font-size:9.5px;color:#777;margin-top:8px;margin-bottom:2px;">自定义图标文件：</div>
-            <div class="file-wrapper"><div class="action-chip">上传自定义图标图片</div><input type="file" accept="image/*" onchange="uploadCustomIcon(event)"></div>
+            <label class="action-chip file-label">上传自定义图标图片<input type="file" accept="image/*" onchange="uploadCustomIcon(event)"></label>
             <div class="icon-preview-row" id="custom-icon-preview-row" style="display:none;"><div style="display:flex;align-items:center;gap:8px;"><div class="icon-preview-box"><img id="custom-icon-img" src="" alt="preview"></div><span style="font-size:10px;color:#555;" id="custom-icon-name">已加载图标</span></div><button class="action-chip" style="padding:2px 8px;font-size:9px;" onclick="clearCustomIcon()">恢复默认</button></div>
         </div>
     </div>
@@ -280,7 +282,7 @@ jQuery(async () => {
     window.closeBpApp = function() { container.style.display = 'none'; closeAllDrawers(); };
 
     function toggleIconDisplay(show) { isIconVisible = show; updateBottomMeta(); }
-    function uploadCustomIcon(e) { var file = e.target.files[0]; if(!file) return; var reader = new FileReader(); reader.onload = function(ev) { customIconDataUrl = ev.target.result; document.getElementById('custom-icon-img').src = customIconDataUrl; document.getElementById('custom-icon-name').innerText = file.name.substring(0,10); document.getElementById('custom-icon-preview-row').style.display = 'flex'; updateBottomMeta(); }; reader.readAsDataURL(file); }
+    function uploadCustomIcon(e) { var file = e.target.files[0]; if(!file) return; var reader = new FileReader(); reader.onload = function(ev) { customIconDataUrl = ev.target.result; document.getElementById('custom-icon-img').src = customIconDataUrl; document.getElementById('custom-icon-name').innerText = file.name.substring(0,10); document.getElementById('custom-icon-preview-row').style.display = 'flex'; updateBottomMeta(); toastr.success('图标已更新'); }; reader.readAsDataURL(file); }
     function clearCustomIcon() { customIconDataUrl = null; document.getElementById('custom-icon-img').src = ''; document.getElementById('custom-icon-preview-row').style.display = 'none'; updateBottomMeta(); }
 
     function getGanZhiDate(d){var tG=["甲","乙","丙","丁","戊","己","庚","辛","壬","癸"],dZ=["子","丑","寅","卯","辰","巳","午","未","申","酉","戌","亥"],y=d.getFullYear(),o=(y-4)%60;return tG[o%10]+dZ[o%12]+'年 '+tG[d.getMonth()%10]+dZ[(d.getMonth()+2)%12]+'月 '+tG[d.getDate()%10]+dZ[(d.getDate()+4)%12]+'日';}
@@ -317,7 +319,7 @@ jQuery(async () => {
     function setBottomGrainOpacity(v){root.style.setProperty('--bottom-grain-opacity',v/100);}
 
     function setZoneFont(zone,fontFamily,element,fontName){var listId=zone==='top'?'topFontList':'bottomFontList';var labelId=zone==='top'?'top-font-name-label':'bottom-font-name-label';document.querySelectorAll('#'+listId+' .font-compact-item').forEach(function(i){i.classList.remove('selected');});if(element)element.classList.add('selected');document.getElementById(labelId).innerText=fontName;root.style.setProperty(zone==='top'?'--top-font-family':'--scrap-font-family',fontFamily);setTimeout(function(){if(currentLayout==='horizontal')collageArea.style.height=sourceArea.offsetHeight+'px';},30);}
-    function loadCustomFont(e){var file=e.target.files[0];if(!file)return;var fontName="UserFont_"+Date.now(),cleanName=file.name.replace(/\.[^/.]+$/,"").substring(0,8);var reader=new FileReader();reader.onload=async function(ev){try{var nf=new FontFace(fontName,ev.target.result);await nf.load();document.fonts.add(nf);addFontItemToList('top',fontName,cleanName);addFontItemToList('bottom',fontName,cleanName);toastr.success('字体 ['+cleanName+'] 导入成功');}catch(err){toastr.error("字体解析失败");}};reader.readAsArrayBuffer(file);}
+    function loadCustomFont(e){var file=e.target.files[0];if(!file)return;var fontName="UserFont_"+Date.now(),cleanName=file.name.replace(/\.[^/.]+$/,"").substring(0,8);var reader=new FileReader();reader.onload=function(ev){try{var nf=new FontFace(fontName,ev.target.result);nf.load().then(function(loaded){document.fonts.add(loaded);addFontItemToList('top',fontName,cleanName);addFontItemToList('bottom',fontName,cleanName);toastr.success('字体 ['+cleanName+'] 导入成功，请在字体列表点击选用');}).catch(function(err){toastr.error("字体解析失败");});}catch(err){toastr.error("字体解析失败");}};reader.readAsArrayBuffer(file);}
     function addFontItemToList(zone,fontName,cleanName){var c=document.getElementById(zone==='top'?'topFontList':'bottomFontList');var item=document.createElement('div');item.className='font-compact-item';item.innerHTML='<div class="font-name-col">'+cleanName+'</div><div class="font-preview-col" style="font-family:\''+fontName+'\',serif;">恨水虚席</div>';item.onclick=function(){setZoneFont(zone,"'"+fontName+"', serif",this,cleanName);};c.insertBefore(item,c.firstChild);}
     function setTopFontSize(v){root.style.setProperty('--top-font-size',v+'px');setTimeout(function(){if(currentLayout==='horizontal')collageArea.style.height=sourceArea.offsetHeight+'px';},30);}
     function setScrapFontSize(v){root.style.setProperty('--scrap-font-size',v+'px');}
