@@ -255,16 +255,31 @@ jQuery(async () => {
             syncCollageSize();
             updateBottomMeta();
             if (!text) {
-                if (!collageArea.querySelector('.bp-welcome')) {
-                    var w = document.createElement('div');
-                    w.className = 'bp-welcome';
-                    w.innerText = '欢迎使用薄荷的拼贴诗小插件';
-                    collageArea.appendChild(w);
-                }
-                collageArea.style.height = '160px';
+                collageArea.style.height = '200px';
+                // 把欢迎语拆成散落的拼贴纸片
+                var welcomeStr = '欢迎使用薄荷的拼贴诗';
+                var chars = welcomeStr.split('');
+                var rect = collageArea.getBoundingClientRect();
+                var areaW = rect.width || 400;
+                var startX = (areaW - chars.length * 34) / 2;
+                if (startX < 15) startX = 15;
+                chars.forEach(function(ch, i) {
+                    var scrap = document.createElement('div');
+                    scrap.className = 'scrap-word bp-welcome-scrap';
+                    scrap.textContent = ch;
+                    var rot = (Math.random() * 16 - 8).toFixed(1);
+                    var offsetY = (Math.random() * 24 - 12).toFixed(0);
+                    scrap.style.left = (startX + i * 34) + 'px';
+                    scrap.style.top = (80 + parseInt(offsetY)) + 'px';
+                    scrap.style.transform = 'rotate(' + rot + 'deg)';
+                    scrap.style.opacity = '0.5';
+                    bindDrag(scrap);
+                    collageArea.appendChild(scrap);
+                });
             }
-        }, 80);
+        }, 100);
     };
+
     window.closeBpApp = function() { container.style.display = 'none'; closeAllDrawers(); };
 
     function toggleIconDisplay(show) { isIconVisible = show; updateBottomMeta(); }
