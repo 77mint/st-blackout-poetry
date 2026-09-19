@@ -106,7 +106,6 @@ jQuery(async () => {
 #bp-app-container #poster-canvas.layout-horizontal #collage-resizer::after { content:""; width:3px; height:32px; background:rgba(0,0,0,0.2); border-radius:2px; }
 #bp-app-container .scrap-word { position:absolute; background-color:var(--scrap-bg); color:var(--shared-text-color); padding:3px 6px; font-size:var(--scrap-font-size); line-height:1; border-radius:1px; cursor:grab; box-shadow:1px 2px 5px rgba(0,0,0,0.15); font-family:inherit; touch-action:none; z-index:10; display:inline-flex; justify-content:center; align-items:center; width:26px; height:30px; }
 #bp-app-container .scrap-word:active { cursor:grabbing; box-shadow:2px 6px 14px rgba(0,0,0,0.25); z-index:100; }
-#bp-app-container .bp-welcome { position:absolute; top:50%; left:50%; transform:translate(-50%,-50%) rotate(-3deg); font-size:13px; color:var(--shared-text-color); opacity:0.35; text-align:center; letter-spacing:0.08em; line-height:1.8; pointer-events:none; white-space:nowrap; }
 #bp-app-container .texture-layer { position:absolute; top:0; left:0; width:100%; height:100%; pointer-events:none; mix-blend-mode:overlay; z-index:800; }
 #bp-app-container #top-texture { opacity:var(--top-grain-opacity); }
 #bp-app-container #bottom-texture { opacity:var(--bottom-grain-opacity); }
@@ -256,7 +255,6 @@ jQuery(async () => {
             updateBottomMeta();
             if (!text) {
                 collageArea.style.height = '200px';
-                // 把欢迎语拆成散落的拼贴纸片
                 var welcomeStr = '欢迎使用薄荷的拼贴诗';
                 var chars = welcomeStr.split('');
                 var rect = collageArea.getBoundingClientRect();
@@ -272,14 +270,13 @@ jQuery(async () => {
                     scrap.style.left = (startX + i * 34) + 'px';
                     scrap.style.top = (80 + parseInt(offsetY)) + 'px';
                     scrap.style.transform = 'rotate(' + rot + 'deg)';
-                    scrap.style.opacity = '0.5';
+                    scrap.style.opacity = '0.55';
                     bindDrag(scrap);
                     collageArea.appendChild(scrap);
                 });
             }
         }, 100);
     };
-
     window.closeBpApp = function() { container.style.display = 'none'; closeAllDrawers(); };
 
     function toggleIconDisplay(show) { isIconVisible = show; updateBottomMeta(); }
@@ -304,7 +301,7 @@ jQuery(async () => {
     function initColorPaletteUI(id,cb){var c=document.getElementById(id);c.innerHTML='';[{label:'浅色系',list:colorCategories.light},{label:'复古色系',list:colorCategories.vintage},{label:'深色系',list:colorCategories.dark}].forEach(function(sec){var lbl=document.createElement('div');lbl.className='color-group-label';lbl.innerText=sec.label;c.appendChild(lbl);var row=document.createElement('div');row.className='color-palette-row';sec.list.forEach(function(cl){var btn=document.createElement('button');btn.className='color-dot';btn.style.backgroundColor=cl.bg;btn.title=cl.name;btn.onclick=function(){cb(cl.bg);};row.appendChild(btn);});c.appendChild(row);});}
     function initTextColorPaletteUI(){var c=document.getElementById('textColorPaletteContainer');var row=document.createElement('div');row.className='color-palette-row';['#1A1A1A','#FFFFFF','#666666','#A0A0A0','#6B2D2B','#334839','#203A4C','#6B442A','#C99E5C','#D9CBB7','#E5EADF','#EFE5E3'].forEach(function(col){var btn=document.createElement('button');btn.className='color-dot';btn.style.backgroundColor=col;btn.onclick=function(){setTextColor(col);};row.appendChild(btn);});c.appendChild(row);}
 
-    function arrangeStrictGrid(targetLines){var scraps=Array.from(collageArea.querySelectorAll('.scrap-word'));var count=scraps.length;if(!count)return;var rect=collageArea.getBoundingClientRect();var cardW=28,cardH=32,gapX=8,gapY=12;var sumX=0,sumY=0;scraps.forEach(function(s){sumX+=parseFloat(s.style.left)||0;sumY+=parseFloat(s.style.top)||0;});var cX=sumX/count+cardW/2,cY=sumY/count+cardH/2;var aL=Math.min(targetLines,count),base=Math.floor(count/aL),rem=count%aL;var maxC=base+(rem>0?1:0),mW=maxC*cardW+(maxC-1)*gapX,mH=aL*cardH+(aL-1)*gapY;var oX=Math.max(10,Math.min(rect.width-mW-10,cX-mW/2)),oY=Math.max(10,Math.min(rect.height-mH-35,cY-mH/2));var ci=0;for(var line=0;line<aL;line++){var items=base+(line<rem?1:0),lW=items*cardW+(items-1)*gapX;var lX=oX+(mW-lW)/2,lY=oY+line*(cardH+gapY);for(var col=0;col<items;col++){var sc=scraps[ci];if(!sc)break;sc.style.transition='all 0.32s cubic-bezier(0.2,0.9,0.3,1)';sc.style.transform='rotate(0deg)';sc.style.left=(lX+col*(cardW+gapX))+'px';sc.style.top=lY+'px';ci++;}}setTimeout(function(){scraps.forEach(function(s){s.style.transition='';});},350);}
+    function arrangeStrictGrid(targetLines){var scraps=Array.from(collageArea.querySelectorAll('.scrap-word'));var count=scraps.length;if(!count)return;var rect=collageArea.getBoundingClientRect();var cardW=28,cardH=32,gapX=8,gapY=12;var sumX=0,sumY=0;scraps.forEach(function(s){sumX+=parseFloat(s.style.left)||0;sumY+=parseFloat(s.style.top)||0;});var cX=sumX/count+cardW/2,cY=sumY/count+cardH/2;var aL=Math.min(targetLines,count),base=Math.floor(count/aL),rem=count%aL;var maxC=base+(rem>0?1:0),mW=maxC*cardW+(maxC-1)*gapX,mH=aL*cardH+(aL-1)*gapY;var oX=Math.max(10,Math.min(rect.width-mW-10,cX-mW/2)),oY=Math.max(10,Math.min(rect.height-mH-35,cY-mH/2));var ci=0;for(var line=0;line<aL;line++){var items=base+(line<rem?1:0),lW=items*cardW+(items-1)*gapX;var lX=oX+(mW-lW)/2,lY=oY+line*(cardH+gapY);for(var col=0;col<items;col++){var sc=scraps[ci];if(!sc)break;sc.style.transition='all 0.32s cubic-bezier(0.2,0.9,0.3,1)';sc.style.transform='rotate(0deg)';sc.style.opacity='1';sc.style.left=(lX+col*(cardW+gapX))+'px';sc.style.top=lY+'px';ci++;}}setTimeout(function(){scraps.forEach(function(s){s.style.transition='';});},350);}
 
     function calculateCutColor(hex){var rgb=parseInt(hex.replace('#',''),16);var r=(rgb>>16)&0xff,g=(rgb>>8)&0xff,b=rgb&0xff;return(0.2126*r+0.7152*g+0.0722*b)>140?'rgba(0,0,0,0.06)':'rgba(255,255,255,0.15)';}
     function setTopBg(c){sourceArea.style.backgroundImage='none';root.style.setProperty('--top-bg',c);root.style.setProperty('--scrap-bg',c);root.style.setProperty('--top-cut-color',calculateCutColor(c));}
@@ -329,15 +326,14 @@ jQuery(async () => {
     function switchLayout(type){currentLayout=type;document.getElementById('btn-layout-vertical').classList.toggle('active',type==='vertical');document.getElementById('btn-layout-horizontal').classList.toggle('active',type==='horizontal');if(type==='horizontal'){posterCanvas.classList.add('layout-horizontal');collageArea.style.height=sourceArea.offsetHeight+'px';collageArea.style.width='340px';}else{posterCanvas.classList.remove('layout-horizontal');collageArea.style.width='100%';collageArea.style.height=sourceArea.offsetHeight+'px';}}
     function initCollageResizer(){var isR=false,sX,sY,sW,sH;var onS=function(e){isR=true;var p=e.type.includes('touch')?e.touches[0]:e;sX=p.clientX;sY=p.clientY;sW=collageArea.offsetWidth;sH=collageArea.offsetHeight;e.stopPropagation();};var onM=function(e){if(!isR)return;var p=e.type.includes('touch')?e.touches[0]:e;if(currentLayout==='vertical'){collageArea.style.height=Math.max(140,sH+(p.clientY-sY))+'px';}else{collageArea.style.width=Math.max(140,sW+(p.clientX-sX))+'px';collageArea.style.height=sourceArea.offsetHeight+'px';}};var onE=function(){isR=false;};resizer.addEventListener('mousedown',onS);window.addEventListener('mousemove',onM);window.addEventListener('mouseup',onE);resizer.addEventListener('touchstart',onS,{passive:true});window.addEventListener('touchmove',onM,{passive:true});window.addEventListener('touchend',onE);}
 
-    function renderArticle(text){textFlow.innerHTML='';collageArea.querySelectorAll('.scrap-word').forEach(function(e){e.remove();});var wc=collageArea.querySelector('.bp-welcome');if(wc)wc.remove();text.split('').forEach(function(char,idx){var span=document.createElement('span');span.className='char-node';span.textContent=char;span.dataset.char=char;span.dataset.idx=idx;span.onclick=function(){handleCharClick(span);};textFlow.appendChild(span);});setTimeout(function(){if(currentLayout==='horizontal')collageArea.style.height=sourceArea.offsetHeight+'px';},30);}
-    function handleCharClick(span){var idx=span.dataset.idx;if(span.classList.contains('is-cut')){span.classList.remove('is-cut');var sc=collageArea.querySelector('.scrap-word[data-idx="'+idx+'"]');if(sc)sc.remove();return;}span.classList.add('is-cut');var wc=collageArea.querySelector('.bp-welcome');if(wc)wc.remove();spawnScrap(span.dataset.char,idx);}
+    function renderArticle(text){textFlow.innerHTML='';collageArea.querySelectorAll('.scrap-word').forEach(function(e){e.remove();});text.split('').forEach(function(char,idx){var span=document.createElement('span');span.className='char-node';span.textContent=char;span.dataset.char=char;span.dataset.idx=idx;span.onclick=function(){handleCharClick(span);};textFlow.appendChild(span);});setTimeout(function(){if(currentLayout==='horizontal')collageArea.style.height=sourceArea.offsetHeight+'px';},30);}
+    function handleCharClick(span){var idx=span.dataset.idx;if(span.classList.contains('is-cut')){span.classList.remove('is-cut');var sc=collageArea.querySelector('.scrap-word[data-idx="'+idx+'"]');if(sc)sc.remove();return;}var wc=collageArea.querySelectorAll('.bp-welcome-scrap');wc.forEach(function(e){e.remove();});span.classList.add('is-cut');spawnScrap(span.dataset.char,idx);}
     function spawnScrap(char,idx){var scrap=document.createElement('div');scrap.className='scrap-word';scrap.textContent=char;scrap.dataset.idx=idx;var rect=collageArea.getBoundingClientRect();scrap.style.left=(Math.random()*(rect.width-50)+20)+'px';scrap.style.top=(Math.random()*(rect.height-60)+20)+'px';bindDrag(scrap);scrap.ondblclick=function(){var t=textFlow.querySelector('.char-node[data-idx="'+idx+'"]');if(t)t.classList.remove('is-cut');scrap.remove();};collageArea.appendChild(scrap);}
     function bindDrag(el){var sX,sY,oX,oY,isDragging=false;var onS=function(e){isDragging=true;var p=e.type.includes('touch')?e.touches[0]:e;sX=p.clientX;sY=p.clientY;oX=parseFloat(el.style.left)||0;oY=parseFloat(el.style.top)||0;el.style.zIndex=1000;};var onM=function(e){if(!isDragging)return;var p=e.type.includes('touch')?e.touches[0]:e;el.style.left=(oX+(p.clientX-sX))+'px';el.style.top=(oY+(p.clientY-sY))+'px';};var onE=function(){isDragging=false;el.style.zIndex=10;};el.addEventListener('mousedown',onS);window.addEventListener('mousemove',onM);window.addEventListener('mouseup',onE);el.addEventListener('touchstart',onS,{passive:true});window.addEventListener('touchmove',onM,{passive:true});window.addEventListener('touchend',onE);}
     function uploadTopBg(e){var f=e.target.files[0];if(!f)return;var r=new FileReader();r.onload=function(ev){sourceArea.style.backgroundImage='url('+ev.target.result+')';};r.readAsDataURL(f);}
     function uploadBottomBg(e){var f=e.target.files[0];if(!f)return;var r=new FileReader();r.onload=function(ev){collageArea.style.backgroundImage='url('+ev.target.result+')';};r.readAsDataURL(f);}
     function resetCuts(){textFlow.querySelectorAll('.char-node.is-cut').forEach(function(n){n.classList.remove('is-cut');});collageArea.querySelectorAll('.scrap-word').forEach(function(n){n.remove();});}
 
-    // ===== iframe 沙箱截图（不扫描酒馆主文档 CSS，速度快 10 倍，不卡死）=====
     function exportPosterImage(){
         if(typeof html2canvas==='undefined'){toastr.warning('截图组件加载中，请稍后再试');return;}
         closeAllDrawers();
