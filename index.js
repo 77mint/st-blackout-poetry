@@ -28,20 +28,17 @@ jQuery(async () => {
     fl.rel = 'stylesheet';
     document.head.appendChild(fl);
 
-    // ===== 字体持久化（IndexedDB，支持大文件） =====
+    // ===== 字体持久化（IndexedDB） =====
     var customFonts = [];
     var BP_DB_NAME = 'bp-blackout-poetry';
     var BP_DB_STORE = 'appdata';
     var BP_DB_VERSION = 1;
-
     function openBpDB(){
         return new Promise(function(resolve, reject){
             var req = indexedDB.open(BP_DB_NAME, BP_DB_VERSION);
             req.onupgradeneeded = function(e){
                 var db = e.target.result;
-                if(!db.objectStoreNames.contains(BP_DB_STORE)){
-                    db.createObjectStore(BP_DB_STORE);
-                }
+                if(!db.objectStoreNames.contains(BP_DB_STORE)) db.createObjectStore(BP_DB_STORE);
             };
             req.onsuccess = function(e){ resolve(e.target.result); };
             req.onerror = function(e){ reject(e.target.error); };
@@ -59,19 +56,14 @@ jQuery(async () => {
                 var tx = db.transaction(BP_DB_STORE, 'readonly');
                 var req = tx.objectStore(BP_DB_STORE).get('customFonts');
                 req.onsuccess = function(e){
-                    if(Array.isArray(e.target.result)){
-                        customFonts = e.target.result;
-                    }
+                    if(Array.isArray(e.target.result)) customFonts = e.target.result;
                     resolve();
                 };
                 req.onerror = function(){ resolve(); };
             });
         }).catch(function(e){ console.warn('[拼贴诗] 字体读取失败', e); });
     }
-
-    // 启动时异步加载已保存的字体
     await loadCustomFontsFromStorage();
-
     function injectCustomFonts(){
         var el = document.getElementById('bp-custom-fonts');
         if(!el){ el = document.createElement('style'); el.id = 'bp-custom-fonts'; document.head.appendChild(el); }
@@ -149,6 +141,8 @@ jQuery(async () => {
 #bp-app-container .char-node.is-cut::after { content:""; position:absolute; top:2px; bottom:2px; left:0; right:0; background-color:var(--top-cut-color); border-radius:1px; box-shadow:inset 0 0 1px rgba(0,0,0,0.15); }
 #bp-app-container #collage-area { position:relative; background-color:var(--bottom-bg); background-image:var(--bottom-bg-img); background-size:cover; background-position:center; border-top:1px solid rgba(0,0,0,0.04); flex-shrink:0; min-height:180px; min-width:180px; overflow:hidden; font-family:var(--scrap-font-family); padding-bottom:35px; }
 #bp-app-container #poster-canvas.layout-horizontal #collage-area { border-top:none; border-left:1px solid rgba(0,0,0,0.04); }
+#bp-app-container #poster-canvas.swapped #source-area { order:2; }
+#bp-app-container #poster-canvas.swapped #collage-area { order:1; }
 #bp-app-container #collage-resizer { position:absolute; z-index:1000; display:flex; align-items:center; justify-content:center; }
 #bp-app-container #poster-canvas:not(.layout-horizontal) #collage-resizer { bottom:0; left:0; width:100%; height:12px; cursor:ns-resize; }
 #bp-app-container #poster-canvas:not(.layout-horizontal) #collage-resizer::after { content:""; width:32px; height:3px; background:rgba(0,0,0,0.2); border-radius:2px; }
@@ -189,6 +183,7 @@ jQuery(async () => {
         <div class="layout-toggle-group">
             <button class="layout-btn active" id="btn-layout-vertical" onclick="switchLayout('vertical')">上下</button>
             <button class="layout-btn" id="btn-layout-horizontal" onclick="switchLayout('horizontal')">左右</button>
+            <button class="layout-btn" onclick="swapAreas()">交换</button>
         </div>
     </div>
     <div id="top-right-bar">
@@ -234,8 +229,9 @@ jQuery(async () => {
         </div>
         <div class="drawer-section">
             <div class="section-title">4. 抠字排版</div>
-            <div class="grid-buttons"><button class="action-chip" onclick="arrangeStrictGrid(1)">原地排 1 行</button><button class="action-chip" onclick="arrangeStrictGrid(2)">原地排 2 行</button><button class="action-chip" style="font-weight:600;border-color:#000;" onclick="arrangeStrictGrid(3)">原地排 3 行</button></div>
-            <button class="action-chip" style="width:100%;margin-top:8px;" onclick="resetCuts()">复原全部字</button>
+            <div class="grid-buttons"><button class="action-chip" onclick="arrangeStrictGrid(1)">整齐排 1 行</button><button class="action-chip" onclick="arrangeStrictGrid(2)">整齐排 2 行</button><button class="action-chip" style="font-weight:600;border-color:#000;" onclick="arrangeStrictGrid(3)">整齐排 3 行</button></div>
+            <div style="font-size:9px;color:#888;margin-top:4px;margin-bottom:6px;">按你放的位置排序（左→右，上→下）</div>
+            <button class="action-chip" style="width:100%;margin-top:4px;" onclick="resetCuts()">复原全部字</button>
         </div>
     </div>
     <div id="settings-drawer">
@@ -261,18 +257,9 @@ jQuery(async () => {
     `;
     document.body.appendChild(container);
 
-    // CSS 字体导入弹窗
     var cssFontMask = document.createElement('div');
     cssFontMask.id = 'bp-cssfont-mask';
-    cssFontMask.innerHTML = '<div id="bp-cssfont-box">'
-        + '<div style="font-size:14px;font-weight:600;margin-bottom:10px;color:#222;">粘贴字体 CSS 代码</div>'
-        + '<div style="font-size:11px;color:#888;margin-bottom:8px;line-height:1.6;">从字体网站(如 zeoseven)复制包含 @import 和 font-family 的 CSS 粘贴到下方</div>'
-        + '<input type="text" id="bp-cssfont-name" placeholder="字体名称(自己起个名)" style="width:100%;box-sizing:border-box;padding:8px;border:1px solid #ddd;border-radius:6px;margin-bottom:8px;font-size:13px;">'
-        + '<textarea id="bp-cssfont-css" placeholder="@import url(...);&#10;font-family: ...;" style="width:100%;box-sizing:border-box;height:120px;padding:8px;border:1px solid #ddd;border-radius:6px;font-size:12px;font-family:monospace;"></textarea>'
-        + '<div style="display:flex;gap:8px;justify-content:flex-end;margin-top:12px;">'
-        + '<button class="action-chip" id="bp-cssfont-cancel" style="padding:8px 16px;">取消</button>'
-        + '<button class="action-chip" id="bp-cssfont-save" style="padding:8px 16px;background:#1C1C1C;color:#fff;">导入</button>'
-        + '</div></div>';
+    cssFontMask.innerHTML = '<div id="bp-cssfont-box"><div style="font-size:14px;font-weight:600;margin-bottom:10px;color:#222;">粘贴字体 CSS 代码</div><div style="font-size:11px;color:#888;margin-bottom:8px;line-height:1.6;">从字体网站复制包含 @import 和 font-family 的 CSS 粘贴到下方</div><input type="text" id="bp-cssfont-name" placeholder="字体名称" style="width:100%;box-sizing:border-box;padding:8px;border:1px solid #ddd;border-radius:6px;margin-bottom:8px;font-size:13px;"><textarea id="bp-cssfont-css" placeholder="@import url(...);\nfont-family: ...;" style="width:100%;box-sizing:border-box;height:120px;padding:8px;border:1px solid #ddd;border-radius:6px;font-size:12px;font-family:monospace;"></textarea><div style="display:flex;gap:8px;justify-content:flex-end;margin-top:12px;"><button class="action-chip" id="bp-cssfont-cancel" style="padding:8px 16px;">取消</button><button class="action-chip" id="bp-cssfont-save" style="padding:8px 16px;background:#1C1C1C;color:#fff;">导入</button></div></div>';
     document.body.appendChild(cssFontMask);
     cssFontMask.addEventListener('click', function(e){ if(e.target === cssFontMask) cssFontMask.style.display = 'none'; });
 
@@ -342,6 +329,11 @@ jQuery(async () => {
     function uploadCustomIcon(e) { var file = e.target.files[0]; if(!file) return; var reader = new FileReader(); reader.onload = function(ev) { customIconDataUrl = ev.target.result; document.getElementById('custom-icon-img').src = customIconDataUrl; document.getElementById('custom-icon-name').innerText = file.name.substring(0,10); document.getElementById('custom-icon-preview-row').style.display = 'flex'; updateBottomMeta(); toastr.success('图标已更新'); }; reader.readAsDataURL(file); }
     function clearCustomIcon() { customIconDataUrl = null; document.getElementById('custom-icon-img').src = ''; document.getElementById('custom-icon-preview-row').style.display = 'none'; updateBottomMeta(); }
 
+    // ===== 交换原文区和拼贴区 =====
+    function swapAreas(){
+        posterCanvas.classList.toggle('swapped');
+    }
+
     // ===== 字体系统 =====
     function getFollowFont(){ var mes = document.querySelector('.mes_text') || document.querySelector('#chat') || document.body; try { return getComputedStyle(mes).fontFamily || 'serif'; } catch(e){ return 'serif'; } }
     function renderFontLists(){
@@ -406,7 +398,6 @@ jQuery(async () => {
 
     function getGanZhiDate(d){var tG=["甲","乙","丙","丁","戊","己","庚","辛","壬","癸"],dZ=["子","丑","寅","卯","辰","巳","午","未","申","酉","戌","亥"],y=d.getFullYear(),o=(y-4)%60;return tG[o%10]+dZ[o%12]+'年 '+tG[d.getMonth()%10]+dZ[(d.getMonth()+2)%12]+'月 '+tG[d.getDate()%10]+dZ[(d.getDate()+4)%12]+'日';}
     function setTimeFormat(m){currentTimeMode=m;document.getElementById('btn-time-solar').classList.toggle('active',m==='solar');document.getElementById('btn-time-lunar').classList.toggle('active',m==='lunar');updateBottomMeta();}
-
     function updateBottomMeta(){
         var iconSlot=document.getElementById('bottom-icon-slot');
         if(isIconVisible){if(customIconDataUrl){iconSlot.innerHTML='<img src="'+customIconDataUrl+'" alt="icon">';}else{iconSlot.innerHTML='<span style="font-size:10px;line-height:1;">&#x1FAE7;</span>';}iconSlot.style.display='inline-flex';}else{iconSlot.innerHTML='';iconSlot.style.display='none';}
@@ -422,7 +413,48 @@ jQuery(async () => {
     function initColorPaletteUI(id,cb){var c=document.getElementById(id);c.innerHTML='';[{label:'浅色系',list:colorCategories.light},{label:'复古色系',list:colorCategories.vintage},{label:'深色系',list:colorCategories.dark}].forEach(function(sec){var lbl=document.createElement('div');lbl.className='color-group-label';lbl.innerText=sec.label;c.appendChild(lbl);var row=document.createElement('div');row.className='color-palette-row';sec.list.forEach(function(cl){var btn=document.createElement('button');btn.className='color-dot';btn.style.backgroundColor=cl.bg;btn.title=cl.name;btn.onclick=function(){cb(cl.bg);};row.appendChild(btn);});c.appendChild(row);});}
     function initTextColorPaletteUI(){var c=document.getElementById('textColorPaletteContainer');var row=document.createElement('div');row.className='color-palette-row';['#1A1A1A','#FFFFFF','#666666','#A0A0A0','#6B2D2B','#334839','#203A4C','#6B442A','#C99E5C','#D9CBB7','#E5EADF','#EFE5E3'].forEach(function(col){var btn=document.createElement('button');btn.className='color-dot';btn.style.backgroundColor=col;btn.onclick=function(){setTextColor(col);};row.appendChild(btn);});c.appendChild(row);}
 
-    function arrangeStrictGrid(targetLines){var scraps=Array.from(collageArea.querySelectorAll('.scrap-word'));var count=scraps.length;if(!count)return;var rect=collageArea.getBoundingClientRect();var cardW=28,cardH=32,gapX=8,gapY=12;var sumX=0,sumY=0;scraps.forEach(function(s){sumX+=parseFloat(s.style.left)||0;sumY+=parseFloat(s.style.top)||0;});var cX=sumX/count+cardW/2,cY=sumY/count+cardH/2;var aL=Math.min(targetLines,count),base=Math.floor(count/aL),rem=count%aL;var maxC=base+(rem>0?1:0),mW=maxC*cardW+(maxC-1)*gapX,mH=aL*cardH+(aL-1)*gapY;var oX=Math.max(10,Math.min(rect.width-mW-10,cX-mW/2)),oY=Math.max(10,Math.min(rect.height-mH-35,cY-mH/2));var ci=0;for(var line=0;line<aL;line++){var items=base+(line<rem?1:0),lW=items*cardW+(items-1)*gapX;var lX=oX+(mW-lW)/2,lY=oY+line*(cardH+gapY);for(var col=0;col<items;col++){var sc=scraps[ci];if(!sc)break;sc.style.transition='all 0.32s cubic-bezier(0.2,0.9,0.3,1)';sc.style.transform='rotate(0deg)';sc.style.opacity='1';sc.style.left=(lX+col*(cardW+gapX))+'px';sc.style.top=lY+'px';ci++;}}setTimeout(function(){scraps.forEach(function(s){s.style.transition='';});},350);}
+    // ===== 排列：按当前视觉位置排序（左→右，上→下） =====
+    function arrangeStrictGrid(targetLines){
+        var scraps=Array.from(collageArea.querySelectorAll('.scrap-word'));
+        var count=scraps.length;
+        if(!count)return;
+        var rect=collageArea.getBoundingClientRect();
+        var cardW=28,cardH=32,gapX=8,gapY=12;
+
+        // 按当前视觉位置排序：先按 Y 分行（Y 差距 < cardH 视为同行），行内按 X
+        scraps.sort(function(a,b){
+            var ay=parseFloat(a.style.top)||0, by=parseFloat(b.style.top)||0;
+            var ax=parseFloat(a.style.left)||0, bx=parseFloat(b.style.left)||0;
+            if(Math.abs(ay-by)<cardH) return ax-bx;
+            return ay-by;
+        });
+
+        // 计算质心
+        var sumX=0,sumY=0;
+        scraps.forEach(function(s){sumX+=parseFloat(s.style.left)||0;sumY+=parseFloat(s.style.top)||0;});
+        var cX=sumX/count+cardW/2,cY=sumY/count+cardH/2;
+
+        var aL=Math.min(targetLines,count),base=Math.floor(count/aL),rem=count%aL;
+        var maxC=base+(rem>0?1:0),mW=maxC*cardW+(maxC-1)*gapX,mH=aL*cardH+(aL-1)*gapY;
+        var oX=Math.max(10,Math.min(rect.width-mW-10,cX-mW/2));
+        var oY=Math.max(10,Math.min(rect.height-mH-35,cY-mH/2));
+
+        var ci=0;
+        for(var line=0;line<aL;line++){
+            var items=base+(line<rem?1:0),lW=items*cardW+(items-1)*gapX;
+            var lX=oX+(mW-lW)/2,lY=oY+line*(cardH+gapY);
+            for(var col=0;col<items;col++){
+                var sc=scraps[ci];if(!sc)break;
+                sc.style.transition='all 0.32s cubic-bezier(0.2,0.9,0.3,1)';
+                sc.style.transform='rotate(0deg)';
+                sc.style.opacity='1';
+                sc.style.left=(lX+col*(cardW+gapX))+'px';
+                sc.style.top=lY+'px';
+                ci++;
+            }
+        }
+        setTimeout(function(){scraps.forEach(function(s){s.style.transition='';});},350);
+    }
 
     function calculateCutColor(hex){var rgb=parseInt(hex.replace('#',''),16);var r=(rgb>>16)&0xff,g=(rgb>>8)&0xff,b=rgb&0xff;return(0.2126*r+0.7152*g+0.0722*b)>140?'rgba(0,0,0,0.06)':'rgba(255,255,255,0.15)';}
     function setTopBg(c){sourceArea.style.backgroundImage='none';root.style.setProperty('--top-bg',c);root.style.setProperty('--scrap-bg',c);root.style.setProperty('--top-cut-color',calculateCutColor(c));}
@@ -453,10 +485,12 @@ jQuery(async () => {
     function uploadBottomBg(e){var f=e.target.files[0];if(!f)return;var r=new FileReader();r.onload=function(ev){collageArea.style.backgroundImage='url('+ev.target.result+')';};r.readAsDataURL(f);}
     function resetCuts(){textFlow.querySelectorAll('.char-node.is-cut').forEach(function(n){n.classList.remove('is-cut');});collageArea.querySelectorAll('.scrap-word').forEach(function(n){n.remove();});}
 
+    // ===== 导出（scale 3 更清晰 + 大字体兼容） =====
     function exportPosterImage(){
         if(typeof html2canvas==='undefined'){toastr.warning('截图组件加载中，请稍后再试');return;}
         closeAllDrawers();
         resizer.style.display='none';
+        toastr.info('正在生成高清图片，请稍候…');
         setTimeout(function(){
             var iframe = document.createElement('iframe');
             iframe.setAttribute('aria-hidden','true');
@@ -474,7 +508,6 @@ jQuery(async () => {
                 idoc.open();
                 idoc.write('<!DOCTYPE html><html><head><meta charset="utf-8"><link rel="stylesheet" href="'+FONT_HREF+'"><style>html,body{margin:0;padding:0;}'+CSS_TEXT+'</style><style>'+customFontCss+'</style></head><body></body></html>');
                 idoc.close();
-
                 var wrap = idoc.createElement('div');
                 wrap.id = 'bp-app-container';
                 wrap.style.cssText = 'position:static;display:block;width:auto;height:auto;padding:0;background:transparent;'+varStr;
@@ -483,7 +516,7 @@ jQuery(async () => {
                 if(rs) rs.remove();
                 wrap.appendChild(clone);
                 idoc.body.appendChild(wrap);
-
+                // 大字体需要更多时间解析，500ms
                 setTimeout(function(){
                     var done = function(canvas){
                         try { iframe.remove(); } catch(e){}
@@ -496,7 +529,7 @@ jQuery(async () => {
                             document.body.appendChild(link);
                             link.click();
                             link.remove();
-                            toastr.success('已生成图片');
+                            toastr.success('已生成高清图片');
                         } catch(e){
                             canvas.toBlob(function(blob){
                                 var url = URL.createObjectURL(blob);
@@ -504,7 +537,7 @@ jQuery(async () => {
                                 a.href = url; a.download = 'BlackoutPoetry_'+Date.now()+'.png';
                                 document.body.appendChild(a); a.click(); a.remove();
                                 setTimeout(function(){ URL.revokeObjectURL(url); }, 3000);
-                                toastr.success('已生成图片');
+                                toastr.success('已生成高清图片');
                             }, 'image/png');
                         }
                     };
@@ -515,7 +548,7 @@ jQuery(async () => {
                     };
                     try {
                         html2canvas(clone, {
-                            scale: 2,
+                            scale: 3,
                             useCORS: true,
                             allowTaint: true,
                             backgroundColor: null,
@@ -524,7 +557,7 @@ jQuery(async () => {
                             windowHeight: clone.scrollHeight
                         }).then(done).catch(fail);
                     } catch(e){ fail(e); }
-                }, 200);
+                }, 500);
             } catch(e){
                 try { iframe.remove(); } catch(e2){}
                 resizer.style.display='flex';
@@ -538,7 +571,7 @@ jQuery(async () => {
         setTopBg, setTopCustomBg, setBottomBg, setBottomCustomBg, setTextColor,
         applyTextureEffect, setTopTexture, setTopGrainOpacity, setBottomTexture, setBottomGrainOpacity,
         setZoneFont, loadCustomFont, openCssFontDialog, setTopFontSize, setScrapFontSize,
-        syncCollageSize, switchLayout, renderArticle, handleCharClick, spawnScrap, bindDrag,
+        syncCollageSize, switchLayout, swapAreas, renderArticle, handleCharClick, spawnScrap, bindDrag,
         uploadTopBg, uploadBottomBg, resetCuts, exportPosterImage,
         arrangeStrictGrid, getGanZhiDate, setTimeFormat, updateBottomMeta
     });
