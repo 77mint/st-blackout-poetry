@@ -28,13 +28,27 @@ jQuery(async () => {
     fl.rel = 'stylesheet';
     document.head.appendChild(fl);
 
-    // 用户导入的字体
+    // 用户导入的字体（持久化到 localStorage）
     var customFonts = [];
+    var BP_FONTS_KEY = 'bp-custom-fonts';
+    function saveCustomFontsToStorage(){
+        try { localStorage.setItem(BP_FONTS_KEY, JSON.stringify(customFonts)); }
+        catch(e){ console.warn('[拼贴诗] 字体保存失败(存储可能已满)', e); }
+    }
+    function loadCustomFontsFromStorage(){
+        try {
+            var raw = localStorage.getItem(BP_FONTS_KEY);
+            if(raw){ customFonts = JSON.parse(raw); }
+        } catch(e){ console.warn('[拼贴诗] 字体读取失败', e); customFonts = []; }
+    }
+    loadCustomFontsFromStorage();
+
     function injectCustomFonts(){
         var el = document.getElementById('bp-custom-fonts');
         if(!el){ el = document.createElement('style'); el.id = 'bp-custom-fonts'; document.head.appendChild(el); }
         el.textContent = customFonts.map(function(f){ return f.rule; }).join('\n');
     }
+    injectCustomFonts();
 
     var CSS_TEXT = `
 #bp-app-container {
@@ -89,7 +103,6 @@ jQuery(async () => {
 #bp-app-container .font-compact-item:hover { border-color:#1C1C1C; }
 #bp-app-container .font-compact-item.selected { border-color:#1C1C1C; background:#F0F0F0; font-weight:600; }
 #bp-app-container .font-name-col { font-size:10px; color:#444; }
-#bp-app-container .font-preview-col { font-size:13px; color:#111; letter-spacing:0.05em; }
 #bp-app-container .setting-field { margin-bottom:12px; }
 #bp-app-container .setting-input { width:100%; background:#F7F7F7; border:1px solid #E5E5E5; padding:6px 8px; font-size:11px; border-radius:2px; outline:none; color:#111; }
 #bp-app-container .setting-toggle-row { display:flex; align-items:center; justify-content:space-between; margin-bottom:10px; }
@@ -309,13 +322,13 @@ jQuery(async () => {
             c.innerHTML = '';
             var f0 = document.createElement('div');
             f0.className = 'font-compact-item selected';
-            f0.innerHTML = '<div class="font-name-col">跟随酒馆</div><div class="font-preview-col">恨水虚席</div>';
+            f0.innerHTML = '<div class="font-name-col">跟随酒馆</div>';
             f0.onclick = function(){ setZoneFont(zone,'FOLLOW',this,'跟随酒馆'); };
             c.appendChild(f0);
             customFonts.forEach(function(f){
                 var item = document.createElement('div');
                 item.className = 'font-compact-item';
-                item.innerHTML = '<div class="font-name-col">'+f.name+'</div><div class="font-preview-col" style="font-family:'+f.family+';">恨水虚席</div>';
+                item.innerHTML = '<div class="font-name-col" style="font-family:'+f.family+';">'+f.name+'</div>';
                 item.onclick = function(){ setZoneFont(zone, f.family, this, f.name); };
                 c.appendChild(item);
             });
@@ -330,6 +343,7 @@ jQuery(async () => {
             var dataUrl = ev.target.result;
             var rule = "@font-face{font-family:'"+id+"';src:url("+dataUrl+");}";
             customFonts.push({ id:id, name:cleanName, family:"'"+id+"'", rule:rule });
+            saveCustomFontsToStorage();
             injectCustomFonts();
             renderFontLists();
             toastr.success('字体['+cleanName+']已导入，请在下方列表点击选用');
@@ -354,6 +368,7 @@ jQuery(async () => {
         if(!importLines){ toastr.error('没找到 @import，请检查 CSS'); return; }
         var id = 'BPFontCss'+Date.now();
         customFonts.push({ id:id, name:name, family:fam, rule:importLines });
+        saveCustomFontsToStorage();
         injectCustomFonts();
         renderFontLists();
         cssFontMask.style.display = 'none';
