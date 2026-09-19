@@ -22,11 +22,19 @@ jQuery(async () => {
         });
     }
 
-    var FONT_HREF = 'https://fonts.googleapis.com/css2?family=Ma+Shan+Zheng&family=Noto+Sans+SC:wght@300;400;500&family=Noto+Serif+SC:wght@300;400;600&family=ZCOOL+XiaoWei&display=swap';
+    var FONT_HREF = 'https://fonts.googleapis.com/css2?family=Noto+Serif+SC:wght@300;400;600&display=swap';
     var fl = document.createElement('link');
     fl.href = FONT_HREF;
     fl.rel = 'stylesheet';
     document.head.appendChild(fl);
+
+    // 用户导入的字体
+    var customFonts = [];
+    function injectCustomFonts(){
+        var el = document.getElementById('bp-custom-fonts');
+        if(!el){ el = document.createElement('style'); el.id = 'bp-custom-fonts'; document.head.appendChild(el); }
+        el.textContent = customFonts.map(function(f){ return f.rule; }).join('\n');
+    }
 
     var CSS_TEXT = `
 #bp-app-container {
@@ -40,7 +48,7 @@ jQuery(async () => {
     font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;
 }
 #bp-app-container, #bp-app-container *, #bp-app-container *::before, #bp-app-container *::after { box-sizing:border-box; margin:0; padding:0; user-select:none; -webkit-user-select:none; }
-#bp-app-container input[type="file"], #bp-app-container input[type="color"], #bp-app-container input[type="text"], #bp-app-container input[type="checkbox"], #bp-app-container input[type="range"], #bp-app-container select { user-select:auto !important; -webkit-user-select:auto !important; pointer-events:auto !important; -webkit-tap-highlight-color:transparent; }
+#bp-app-container input[type="file"], #bp-app-container input[type="color"], #bp-app-container input[type="text"], #bp-app-container input[type="checkbox"], #bp-app-container input[type="range"], #bp-app-container select, #bp-app-container textarea { user-select:auto !important; -webkit-user-select:auto !important; pointer-events:auto !important; -webkit-tap-highlight-color:transparent; }
 #bp-app-container #top-left-bar { position:fixed; top:20px; left:20px; display:flex; align-items:center; gap:8px; z-index:2005; }
 #bp-app-container #top-right-bar { position:fixed; top:20px; right:20px; display:flex; align-items:center; gap:8px; z-index:2005; }
 #bp-app-container .icon-btn { width:36px; height:36px; display:flex; justify-content:center; align-items:center; cursor:pointer; background:rgba(255,255,255,0.92); border:1px solid rgba(0,0,0,0.08); border-radius:4px; backdrop-filter:blur(8px); box-shadow:0 4px 15px rgba(0,0,0,0.04); transition:all 0.2s ease; }
@@ -69,8 +77,6 @@ jQuery(async () => {
 #bp-app-container .grid-buttons { display:grid; grid-template-columns:repeat(3,1fr); gap:4px; margin-bottom:6px; }
 #bp-app-container .action-chip { background:#F4F4F4; border:1px solid rgba(0,0,0,0.05); color:#333; padding:6px 0; text-align:center; border-radius:2px; cursor:pointer; font-size:10px; transition:all 0.15s; }
 #bp-app-container .action-chip:hover, #bp-app-container .action-chip.active { background:#1C1C1C; color:#FFF; }
-#bp-app-container .file-wrapper { position:relative; overflow:visible; display:block; margin-top:4px; }
-#bp-app-container .file-wrapper input[type="file"] { position:absolute; left:0; top:0; opacity:0; cursor:pointer; width:100%; height:100%; z-index:10; }
 #bp-app-container label.file-label { display:block; cursor:pointer; -webkit-tap-highlight-color:transparent; }
 #bp-app-container label.file-label input[type="file"] { display:none; }
 #bp-app-container .slider-row { display:flex; align-items:center; justify-content:space-between; margin-top:6px; }
@@ -117,6 +123,9 @@ jQuery(async () => {
 #bp-bubble-btn { position:fixed; right:12px; top:50%; transform:translateY(-50%); background:transparent; border:none; box-shadow:none; z-index:9990; display:flex; justify-content:center; align-items:center; cursor:pointer; font-size:26px; line-height:1; padding:0; transition:transform 0.15s ease, opacity 0.15s ease; opacity:0.85; -webkit-tap-highlight-color:transparent; }
 #bp-bubble-btn:active { transform:translateY(-50%) scale(0.9); opacity:1; }
 #bp-sel-popup { position:fixed; bottom:90px; left:50%; transform:translateX(-50%); z-index:99999; background:rgba(28,28,28,0.92); color:#fff; padding:8px 16px; border-radius:20px; box-shadow:0 4px 12px rgba(0,0,0,0.2); font-size:12px; display:none; align-items:center; gap:6px; cursor:pointer; backdrop-filter:blur(6px); }
+#bp-cssfont-mask { position:fixed; top:0; left:0; width:100vw; height:100vh; background:rgba(0,0,0,0.6); z-index:2147483000; display:none; align-items:center; justify-content:center; padding:20px; box-sizing:border-box; }
+#bp-cssfont-box { background:#fff; border-radius:10px; padding:18px; max-width:480px; width:100%; box-sizing:border-box; }
+#bp-cssfont-box textarea { -webkit-user-select:auto; user-select:auto; }
     `;
     var css = document.createElement('style');
     css.textContent = CSS_TEXT;
@@ -170,23 +179,14 @@ jQuery(async () => {
             <div style="font-size:10px;font-weight:600;color:#333;margin-bottom:4px;">文字颜色：</div>
             <div id="textColorPaletteContainer"></div>
             <div class="color-picker-wrapper" style="margin-bottom:10px;"><input type="color" class="color-picker-input" id="textColorPicker" value="#1A1A1A" onchange="setTextColor(this.value)"><span style="font-size:10px;color:#555;">自定义文字调色盘</span></div>
-            <label class="action-chip file-label" style="background:#EBEBEB;font-weight:600;margin-bottom:8px;">导入本地 .TTF / .OTF 字体文件<input type="file" accept=".ttf,.otf,.woff,.woff2" onchange="loadCustomFont(event)"></label>
-            <div class="sub-panel-box"><div class="sub-panel-title"><span>原文区字体</span><span id="top-font-name-label" style="font-size:9px;color:#999;font-weight:normal;">思源宋体</span></div>
-                <div class="font-compact-list" id="topFontList">
-                    <div class="font-compact-item selected" onclick="setZoneFont('top','Noto Serif SC, serif',this,'思源宋体')"><div class="font-name-col">思源宋体</div><div class="font-preview-col" style="font-family:'Noto Serif SC',serif;">恨水虚席</div></div>
-                    <div class="font-compact-item" onclick="setZoneFont('top','Ma Shan Zheng, cursive',this,'马善政毛笔')"><div class="font-name-col">马善政毛笔</div><div class="font-preview-col" style="font-family:'Ma Shan Zheng',cursive;">恨水虚席</div></div>
-                    <div class="font-compact-item" onclick="setZoneFont('top','ZCOOL XiaoWei, serif',this,'站酷小薇体')"><div class="font-name-col">站酷小薇体</div><div class="font-preview-col" style="font-family:'ZCOOL XiaoWei',serif;">恨水虚席</div></div>
-                    <div class="font-compact-item" onclick="setZoneFont('top','Noto Sans SC, sans-serif',this,'思源黑体')"><div class="font-name-col">思源黑体</div><div class="font-preview-col" style="font-family:'Noto Sans SC',sans-serif;">恨水虚席</div></div>
-                </div>
+            <label class="action-chip file-label" style="background:#EBEBEB;font-weight:600;margin-bottom:6px;">导入本地 .TTF / .OTF 字体<input type="file" accept=".ttf,.otf,.woff,.woff2" onchange="loadCustomFont(event)"></label>
+            <button class="action-chip" style="width:100%;background:#EBEBEB;font-weight:600;margin-bottom:8px;" onclick="openCssFontDialog()">粘贴 CSS 代码导入在线字体</button>
+            <div class="sub-panel-box"><div class="sub-panel-title"><span>原文区字体</span><span id="top-font-name-label" style="font-size:9px;color:#999;font-weight:normal;">跟随酒馆</span></div>
+                <div class="font-compact-list" id="topFontList"></div>
                 <div class="slider-row"><span>原文字号大小</span><input type="range" min="11" max="24" value="14" oninput="setTopFontSize(this.value)"></div>
             </div>
-            <div class="sub-panel-box" style="margin-top:8px;"><div class="sub-panel-title"><span>拼贴区字体</span><span id="bottom-font-name-label" style="font-size:9px;color:#999;font-weight:normal;">思源宋体</span></div>
-                <div class="font-compact-list" id="bottomFontList">
-                    <div class="font-compact-item selected" onclick="setZoneFont('bottom','Noto Serif SC, serif',this,'思源宋体')"><div class="font-name-col">思源宋体</div><div class="font-preview-col" style="font-family:'Noto Serif SC',serif;">恨水虚席</div></div>
-                    <div class="font-compact-item" onclick="setZoneFont('bottom','Ma Shan Zheng, cursive',this,'马善政毛笔')"><div class="font-name-col">马善政毛笔</div><div class="font-preview-col" style="font-family:'Ma Shan Zheng',cursive;">恨水虚席</div></div>
-                    <div class="font-compact-item" onclick="setZoneFont('bottom','ZCOOL XiaoWei, serif',this,'站酷小薇体')"><div class="font-name-col">站酷小薇体</div><div class="font-preview-col" style="font-family:'ZCOOL XiaoWei',serif;">恨水虚席</div></div>
-                    <div class="font-compact-item" onclick="setZoneFont('bottom','Noto Sans SC, sans-serif',this,'思源黑体')"><div class="font-name-col">思源黑体</div><div class="font-preview-col" style="font-family:'Noto Sans SC',sans-serif;">恨水虚席</div></div>
-                </div>
+            <div class="sub-panel-box" style="margin-top:8px;"><div class="sub-panel-title"><span>拼贴区字体</span><span id="bottom-font-name-label" style="font-size:9px;color:#999;font-weight:normal;">跟随酒馆</span></div>
+                <div class="font-compact-list" id="bottomFontList"></div>
                 <div class="slider-row"><span>拼贴小字大小</span><input type="range" min="11" max="24" value="14" oninput="setScrapFontSize(this.value)"></div>
             </div>
         </div>
@@ -218,6 +218,21 @@ jQuery(async () => {
     </div>
     `;
     document.body.appendChild(container);
+
+    // CSS 字体导入弹窗
+    var cssFontMask = document.createElement('div');
+    cssFontMask.id = 'bp-cssfont-mask';
+    cssFontMask.innerHTML = '<div id="bp-cssfont-box">'
+        + '<div style="font-size:14px;font-weight:600;margin-bottom:10px;color:#222;">粘贴字体 CSS 代码</div>'
+        + '<div style="font-size:11px;color:#888;margin-bottom:8px;line-height:1.6;">从字体网站(如 zeoseven)复制包含 @import 和 font-family 的 CSS 粘贴到下方</div>'
+        + '<input type="text" id="bp-cssfont-name" placeholder="字体名称(自己起个名)" style="width:100%;box-sizing:border-box;padding:8px;border:1px solid #ddd;border-radius:6px;margin-bottom:8px;font-size:13px;">'
+        + '<textarea id="bp-cssfont-css" placeholder="@import url(...);&#10;font-family: ...;" style="width:100%;box-sizing:border-box;height:120px;padding:8px;border:1px solid #ddd;border-radius:6px;font-size:12px;font-family:monospace;"></textarea>'
+        + '<div style="display:flex;gap:8px;justify-content:flex-end;margin-top:12px;">'
+        + '<button class="action-chip" id="bp-cssfont-cancel" style="padding:8px 16px;">取消</button>'
+        + '<button class="action-chip" id="bp-cssfont-save" style="padding:8px 16px;background:#1C1C1C;color:#fff;">导入</button>'
+        + '</div></div>';
+    document.body.appendChild(cssFontMask);
+    cssFontMask.addEventListener('click', function(e){ if(e.target === cssFontMask) cssFontMask.style.display = 'none'; });
 
     var bubbleBtn = document.createElement('div');
     bubbleBtn.id = 'bp-bubble-btn';
@@ -285,6 +300,66 @@ jQuery(async () => {
     function uploadCustomIcon(e) { var file = e.target.files[0]; if(!file) return; var reader = new FileReader(); reader.onload = function(ev) { customIconDataUrl = ev.target.result; document.getElementById('custom-icon-img').src = customIconDataUrl; document.getElementById('custom-icon-name').innerText = file.name.substring(0,10); document.getElementById('custom-icon-preview-row').style.display = 'flex'; updateBottomMeta(); toastr.success('图标已更新'); }; reader.readAsDataURL(file); }
     function clearCustomIcon() { customIconDataUrl = null; document.getElementById('custom-icon-img').src = ''; document.getElementById('custom-icon-preview-row').style.display = 'none'; updateBottomMeta(); }
 
+    // ===== 字体系统 =====
+    function getFollowFont(){ var mes = document.querySelector('.mes_text') || document.querySelector('#chat') || document.body; try { return getComputedStyle(mes).fontFamily || 'serif'; } catch(e){ return 'serif'; } }
+    function renderFontLists(){
+        ['top','bottom'].forEach(function(zone){
+            var c = document.getElementById(zone==='top'?'topFontList':'bottomFontList');
+            if(!c) return;
+            c.innerHTML = '';
+            var f0 = document.createElement('div');
+            f0.className = 'font-compact-item selected';
+            f0.innerHTML = '<div class="font-name-col">跟随酒馆</div><div class="font-preview-col">恨水虚席</div>';
+            f0.onclick = function(){ setZoneFont(zone,'FOLLOW',this,'跟随酒馆'); };
+            c.appendChild(f0);
+            customFonts.forEach(function(f){
+                var item = document.createElement('div');
+                item.className = 'font-compact-item';
+                item.innerHTML = '<div class="font-name-col">'+f.name+'</div><div class="font-preview-col" style="font-family:'+f.family+';">恨水虚席</div>';
+                item.onclick = function(){ setZoneFont(zone, f.family, this, f.name); };
+                c.appendChild(item);
+            });
+        });
+    }
+    function loadCustomFont(e){
+        var file = e.target.files[0]; if(!file) return;
+        var cleanName = file.name.replace(/\.[^/.]+$/,"").substring(0,10);
+        var reader = new FileReader();
+        reader.onload = function(ev){
+            var id = 'BPFont'+Date.now();
+            var dataUrl = ev.target.result;
+            var rule = "@font-face{font-family:'"+id+"';src:url("+dataUrl+");}";
+            customFonts.push({ id:id, name:cleanName, family:"'"+id+"'", rule:rule });
+            injectCustomFonts();
+            renderFontLists();
+            toastr.success('字体['+cleanName+']已导入，请在下方列表点击选用');
+        };
+        reader.readAsDataURL(file);
+    }
+    function openCssFontDialog(){
+        cssFontMask.querySelector('#bp-cssfont-name').value = '';
+        cssFontMask.querySelector('#bp-cssfont-css').value = '';
+        cssFontMask.style.display = 'flex';
+    }
+    cssFontMask.querySelector('#bp-cssfont-cancel').onclick = function(){ cssFontMask.style.display = 'none'; };
+    cssFontMask.querySelector('#bp-cssfont-save').onclick = function(){
+        var name = cssFontMask.querySelector('#bp-cssfont-name').value.trim() || '自定义字体';
+        var cssIn = cssFontMask.querySelector('#bp-cssfont-css').value.trim();
+        if(!cssIn){ toastr.error('CSS 不能为空'); return; }
+        var importLines = '';
+        var im = cssIn.match(/@import[^;]+;/g);
+        if(im) importLines = im.join('\n');
+        var m = cssIn.match(/font-family\s*:\s*([^;}\n]+)/);
+        var fam = m ? m[1].trim() : 'sans-serif';
+        if(!importLines){ toastr.error('没找到 @import，请检查 CSS'); return; }
+        var id = 'BPFontCss'+Date.now();
+        customFonts.push({ id:id, name:name, family:fam, rule:importLines });
+        injectCustomFonts();
+        renderFontLists();
+        cssFontMask.style.display = 'none';
+        toastr.success('字体['+name+']已导入，请在下方列表点击选用');
+    };
+
     function getGanZhiDate(d){var tG=["甲","乙","丙","丁","戊","己","庚","辛","壬","癸"],dZ=["子","丑","寅","卯","辰","巳","午","未","申","酉","戌","亥"],y=d.getFullYear(),o=(y-4)%60;return tG[o%10]+dZ[o%12]+'年 '+tG[d.getMonth()%10]+dZ[(d.getMonth()+2)%12]+'月 '+tG[d.getDate()%10]+dZ[(d.getDate()+4)%12]+'日';}
     function setTimeFormat(m){currentTimeMode=m;document.getElementById('btn-time-solar').classList.toggle('active',m==='solar');document.getElementById('btn-time-lunar').classList.toggle('active',m==='lunar');updateBottomMeta();}
 
@@ -318,9 +393,7 @@ jQuery(async () => {
     function setBottomTexture(type){document.querySelectorAll('[id^="bot-tex-"]').forEach(function(b){b.classList.remove('active');});document.getElementById('bot-tex-'+type).classList.add('active');applyTextureEffect('bottom-texture',type);if(type!=='none'&&document.getElementById('bot-grain-slider').value==0){document.getElementById('bot-grain-slider').value=30;setBottomGrainOpacity(30);}}
     function setBottomGrainOpacity(v){root.style.setProperty('--bottom-grain-opacity',v/100);}
 
-    function setZoneFont(zone,fontFamily,element,fontName){var listId=zone==='top'?'topFontList':'bottomFontList';var labelId=zone==='top'?'top-font-name-label':'bottom-font-name-label';document.querySelectorAll('#'+listId+' .font-compact-item').forEach(function(i){i.classList.remove('selected');});if(element)element.classList.add('selected');document.getElementById(labelId).innerText=fontName;root.style.setProperty(zone==='top'?'--top-font-family':'--scrap-font-family',fontFamily);setTimeout(function(){if(currentLayout==='horizontal')collageArea.style.height=sourceArea.offsetHeight+'px';},30);}
-    function loadCustomFont(e){var file=e.target.files[0];if(!file)return;var fontName="UserFont_"+Date.now(),cleanName=file.name.replace(/\.[^/.]+$/,"").substring(0,8);var reader=new FileReader();reader.onload=function(ev){try{var nf=new FontFace(fontName,ev.target.result);nf.load().then(function(loaded){document.fonts.add(loaded);addFontItemToList('top',fontName,cleanName);addFontItemToList('bottom',fontName,cleanName);toastr.success('字体 ['+cleanName+'] 导入成功，请在字体列表点击选用');}).catch(function(err){toastr.error("字体解析失败");});}catch(err){toastr.error("字体解析失败");}};reader.readAsArrayBuffer(file);}
-    function addFontItemToList(zone,fontName,cleanName){var c=document.getElementById(zone==='top'?'topFontList':'bottomFontList');var item=document.createElement('div');item.className='font-compact-item';item.innerHTML='<div class="font-name-col">'+cleanName+'</div><div class="font-preview-col" style="font-family:\''+fontName+'\',serif;">恨水虚席</div>';item.onclick=function(){setZoneFont(zone,"'"+fontName+"', serif",this,cleanName);};c.insertBefore(item,c.firstChild);}
+    function setZoneFont(zone,fontFamily,element,fontName){var listId=zone==='top'?'topFontList':'bottomFontList';var labelId=zone==='top'?'top-font-name-label':'bottom-font-name-label';document.querySelectorAll('#'+listId+' .font-compact-item').forEach(function(i){i.classList.remove('selected');});if(element)element.classList.add('selected');document.getElementById(labelId).innerText=fontName;var actual=fontFamily;if(fontFamily==='FOLLOW'){actual=getFollowFont();}root.style.setProperty(zone==='top'?'--top-font-family':'--scrap-font-family',actual);setTimeout(function(){if(currentLayout==='horizontal')collageArea.style.height=sourceArea.offsetHeight+'px';},30);}
     function setTopFontSize(v){root.style.setProperty('--top-font-size',v+'px');setTimeout(function(){if(currentLayout==='horizontal')collageArea.style.height=sourceArea.offsetHeight+'px';},30);}
     function setScrapFontSize(v){root.style.setProperty('--scrap-font-size',v+'px');}
 
@@ -353,8 +426,9 @@ jQuery(async () => {
                 var varNames = ['--top-bg','--bottom-bg','--scrap-bg','--top-cut-color','--top-font-size','--top-font-family','--scrap-font-size','--scrap-font-family','--shared-text-color','--top-grain-opacity','--bottom-grain-opacity','--page-bg','--top-bg-img','--bottom-bg-img'];
                 var varStr = '';
                 varNames.forEach(function(v){ var val = cs.getPropertyValue(v); if(val) varStr += v + ':' + val + ';'; });
+                var customFontCss = customFonts.map(function(f){ return f.rule; }).join('\n');
                 idoc.open();
-                idoc.write('<!DOCTYPE html><html><head><meta charset="utf-8"><link rel="stylesheet" href="'+FONT_HREF+'"><style>html,body{margin:0;padding:0;}'+CSS_TEXT+'</style></head><body></body></html>');
+                idoc.write('<!DOCTYPE html><html><head><meta charset="utf-8"><link rel="stylesheet" href="'+FONT_HREF+'"><style>html,body{margin:0;padding:0;}'+CSS_TEXT+'</style><style>'+customFontCss+'</style></head><body></body></html>');
                 idoc.close();
 
                 var wrap = idoc.createElement('div');
@@ -406,7 +480,7 @@ jQuery(async () => {
                             windowHeight: clone.scrollHeight
                         }).then(done).catch(fail);
                     } catch(e){ fail(e); }
-                }, 120);
+                }, 200);
             } catch(e){
                 try { iframe.remove(); } catch(e2){}
                 resizer.style.display='flex';
@@ -419,7 +493,7 @@ jQuery(async () => {
         toggleDrawer, toggleSettingsDrawer, closeAllDrawers, toggleIconDisplay, uploadCustomIcon, clearCustomIcon,
         setTopBg, setTopCustomBg, setBottomBg, setBottomCustomBg, setTextColor,
         applyTextureEffect, setTopTexture, setTopGrainOpacity, setBottomTexture, setBottomGrainOpacity,
-        setZoneFont, loadCustomFont, addFontItemToList, setTopFontSize, setScrapFontSize,
+        setZoneFont, loadCustomFont, openCssFontDialog, setTopFontSize, setScrapFontSize,
         syncCollageSize, switchLayout, renderArticle, handleCharClick, spawnScrap, bindDrag,
         uploadTopBg, uploadBottomBg, resetCuts, exportPosterImage,
         arrangeStrictGrid, getGanZhiDate, setTimeFormat, updateBottomMeta
@@ -428,6 +502,7 @@ jQuery(async () => {
     initColorPaletteUI('topPaletteContainer', setTopBg);
     initColorPaletteUI('bottomPaletteContainer', setBottomBg);
     initTextColorPaletteUI();
+    renderFontLists();
     initCollageResizer();
 
     var mountExt = function() {
