@@ -28,20 +28,49 @@ jQuery(async () => {
     fl.rel = 'stylesheet';
     document.head.appendChild(fl);
 
-    // 用户导入的字体（持久化到 localStorage）
+    // ===== 字体持久化（IndexedDB，支持大文件） =====
     var customFonts = [];
-    var BP_FONTS_KEY = 'bp-custom-fonts';
+    var BP_DB_NAME = 'bp-blackout-poetry';
+    var BP_DB_STORE = 'appdata';
+    var BP_DB_VERSION = 1;
+
+    function openBpDB(){
+        return new Promise(function(resolve, reject){
+            var req = indexedDB.open(BP_DB_NAME, BP_DB_VERSION);
+            req.onupgradeneeded = function(e){
+                var db = e.target.result;
+                if(!db.objectStoreNames.contains(BP_DB_STORE)){
+                    db.createObjectStore(BP_DB_STORE);
+                }
+            };
+            req.onsuccess = function(e){ resolve(e.target.result); };
+            req.onerror = function(e){ reject(e.target.error); };
+        });
+    }
     function saveCustomFontsToStorage(){
-        try { localStorage.setItem(BP_FONTS_KEY, JSON.stringify(customFonts)); }
-        catch(e){ console.warn('[拼贴诗] 字体保存失败(存储可能已满)', e); }
+        openBpDB().then(function(db){
+            var tx = db.transaction(BP_DB_STORE, 'readwrite');
+            tx.objectStore(BP_DB_STORE).put(customFonts, 'customFonts');
+        }).catch(function(e){ console.warn('[拼贴诗] 字体保存失败', e); });
     }
     function loadCustomFontsFromStorage(){
-        try {
-            var raw = localStorage.getItem(BP_FONTS_KEY);
-            if(raw){ customFonts = JSON.parse(raw); }
-        } catch(e){ console.warn('[拼贴诗] 字体读取失败', e); customFonts = []; }
+        return openBpDB().then(function(db){
+            return new Promise(function(resolve){
+                var tx = db.transaction(BP_DB_STORE, 'readonly');
+                var req = tx.objectStore(BP_DB_STORE).get('customFonts');
+                req.onsuccess = function(e){
+                    if(Array.isArray(e.target.result)){
+                        customFonts = e.target.result;
+                    }
+                    resolve();
+                };
+                req.onerror = function(){ resolve(); };
+            });
+        }).catch(function(e){ console.warn('[拼贴诗] 字体读取失败', e); });
     }
-    loadCustomFontsFromStorage();
+
+    // 启动时异步加载已保存的字体
+    await loadCustomFontsFromStorage();
 
     function injectCustomFonts(){
         var el = document.getElementById('bp-custom-fonts');
